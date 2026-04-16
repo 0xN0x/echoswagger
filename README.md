@@ -3,10 +3,10 @@ English | [简体中文](./README_zh-CN.md)
 # Echoswagger
 [Swagger UI](https://github.com/swagger-api/swagger-ui) generator for [Echo](https://github.com/labstack/echo) framework
 
-[![Ci](https://github.com/pangpanglabs/echoswagger/actions/workflows/ci.yml/badge.svg?branch=v2)](https://github.com/pangpanglabs/echoswagger/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/pangpanglabs/echoswagger)](https://goreportcard.com/report/github.com/pangpanglabs/echoswagger)
-[![Go Reference](https://pkg.go.dev/badge/github.com/pangpanglabs/echoswagger.svg)](https://pkg.go.dev/github.com/pangpanglabs/echoswagger)
-[![codecov](https://codecov.io/gh/pangpanglabs/echoswagger/branch/v2/graph/badge.svg)](https://codecov.io/gh/pangpanglabs/echoswagger/branch/v2)
+[![Ci](https://github.com/0xN0x/echoswagger/actions/workflows/ci.yml/badge.svg?branch=v2)](https://github.com/0xN0x/echoswagger/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/0xN0x/echoswagger)](https://goreportcard.com/report/github.com/0xN0x/echoswagger)
+[![Go Reference](https://pkg.go.dev/badge/github.com/0xN0x/echoswagger.svg)](https://pkg.go.dev/github.com/0xN0x/echoswagger)
+[![codecov](https://codecov.io/gh/0xN0x/echoswagger/branch/v2/graph/badge.svg)](https://codecov.io/gh/0xN0x/echoswagger/branch/v2)
 
 ## Feature
 - No SwaggerUI HTML/CSS dependency
@@ -16,17 +16,22 @@ English | [简体中文](./README_zh-CN.md)
 
 ## Installation
 ```
-go get github.com/pangpanglabs/echoswagger
+go get github.com/0xN0x/echoswagger
 ```
 
 ## Go modules support
 If your project has migrated to Go modules, you can:
+- Choose v5 version of Echoswaager for Echo version v5.
 - Choose v2 version of Echoswagger for Echo version v4.
 - Choose v1 version of Echoswagger for Echo version <= v3.
 
+To use v5 version, just do: 
+- `go get github.com/0xN0x/echoswagger/v5`
+- import `github.com/labstack/echo/v5` and `github.com/0xN0x/echoswagger/v5` in your project
+
 To use v2 version, just do:
-- `go get github.com/pangpanglabs/echoswagger/v2`
-- import `github.com/labstack/echo/v4` and `github.com/pangpanglabs/echoswagger/v2` in your project
+- `go get github.com/0xN0x/echoswagger/v2`
+- import `github.com/labstack/echo/v4` and `github.com/0xN0x/echoswagger/v2` in your project
 
 Meanwhile, v1 version will still be updated if needed. For more details of Go modules, please refer to [Go Wiki](https://github.com/golang/go/wiki/Modules).
 
@@ -38,7 +43,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo"
-	"github.com/pangpanglabs/echoswagger"
+	"github.com/0xN0x/echoswagger"
 )
 
 func main() {
