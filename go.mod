@@ -1,4 +1,4 @@
-module github.com/0xN0c/echoswagger/v5
+module github.com/0xN0x/echoswagger/v5
 
 go 1.25.0
 
