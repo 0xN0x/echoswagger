@@ -1,8 +1,8 @@
-module github.com/pangpanglabs/echoswagger/v2
+module github.com/0xN0c/echoswagger/v5
 
-go 1.12
+go 1.25.0
 
 require (
-	github.com/labstack/echo/v4 v4.1.13
+	github.com/labstack/echo/v5 v5.1.0
 	github.com/stretchr/testify v1.4.0
 )
