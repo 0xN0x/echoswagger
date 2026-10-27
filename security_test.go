@@ -1,10 +1,11 @@
 package echoswagger
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,7 +46,7 @@ func TestSecurity(t *testing.T) {
 	})
 
 	t.Run("Or2Security", func(t *testing.T) {
-		var h func(e echo.Context) error
+		h := testHandler
 		g := r.Group("OrGroup", "org")
 		a := g.GET("/or", h)
 
@@ -67,7 +68,7 @@ func TestSecurity(t *testing.T) {
 	})
 
 	t.Run("And2Security", func(t *testing.T) {
-		var h func(e echo.Context) error
+		h := testHandler
 		g := r.Group("AndGroup", "andg")
 		a := g.GET("/and", h)
 
@@ -97,7 +98,7 @@ func TestSecurity(t *testing.T) {
 	})
 
 	t.Run("OAuth2Security", func(t *testing.T) {
-		var h func(e echo.Context) error
+		h := testHandler
 		g := r.Group("OAuth2Group", "oauth2g")
 		a := g.GET("/oauth2", h)
 
@@ -120,7 +121,7 @@ func TestSecurity(t *testing.T) {
 	})
 
 	t.Run("OAuth2SecuritySpecial", func(t *testing.T) {
-		var h func(e echo.Context) error
+		h := testHandler
 		g := r.Group("OAuth2GroupSpecial", "oauth2sg")
 		a := g.GET("/oauth2s", h)
 
@@ -140,7 +141,7 @@ func TestSecurity(t *testing.T) {
 	})
 
 	t.Run("RepeatSecurity", func(t *testing.T) {
-		var h func(e echo.Context) error
+		h := testHandler
 		g := r.Group("RepeatGroup", "repeatg")
 		a := g.GET("/repeat", h)
 
@@ -151,7 +152,7 @@ func TestSecurity(t *testing.T) {
 		assert.Len(t, g.(*group).security, 1)
 
 		e := r.(*Root).echo
-		req := httptest.NewRequest(echo.GET, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		if assert.NoError(t, r.(*Root).genSpec(c)) {
@@ -166,7 +167,7 @@ func TestSecurity(t *testing.T) {
 	})
 
 	t.Run("NotFoundSecurity", func(t *testing.T) {
-		var h func(e echo.Context) error
+		h := testHandler
 		g := r.Group("NotFoundGroup", "nfg")
 		a := g.GET("/notfound", h)
 
@@ -174,14 +175,14 @@ func TestSecurity(t *testing.T) {
 		assert.Len(t, a.(*api).security, 1)
 
 		e := r.(*Root).echo
-		req := httptest.NewRequest(echo.GET, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		assert.Error(t, r.(*Root).genSpec(c))
 	})
 
 	t.Run("EmptySecurity", func(t *testing.T) {
-		var h func(e echo.Context) error
+		h := testHandler
 		g := r.Group("EmptyGroup", "eg")
 		a := g.GET("/empty", h)
 
@@ -204,7 +205,7 @@ func TestSecurityRepeat(t *testing.T) {
 	r.AddSecurityBasic("Basic", "Basic Auth")
 
 	t.Run("RepeatSecurity", func(t *testing.T) {
-		h := func(e echo.Context) error {
+		h := func(e *echo.Context) error {
 			return nil
 		}
 		a := r.GET("/repeat", h)
@@ -234,7 +235,7 @@ func TestSecurityRepeat(t *testing.T) {
 		assert.Len(t, a.(*api).security[5], 1)
 		assert.Len(t, a.(*api).security[6], 1)
 
-		req := httptest.NewRequest(echo.GET, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
 		rec := httptest.NewRecorder()
 		c := r.(*Root).echo.NewContext(req, rec)
 		assert.NoError(t, r.(*Root).genSpec(c))

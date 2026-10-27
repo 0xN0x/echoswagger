@@ -1,13 +1,15 @@
 package main
 
 import (
-	"github.com/labstack/echo/v4"
-	"github.com/pangpanglabs/echoswagger/v2"
+	"github.com/0xN0x/echoswagger/v5"
+	"github.com/labstack/echo/v5"
 )
 
 func main() {
 	e := initServer().Echo()
-	e.Logger.Fatal(e.Start(":1323"))
+	if err := e.Start(":1323"); err != nil {
+		e.Logger.Error("failed to start server", "error", err)
+	}
 }
 
 func initServer() echoswagger.ApiRoot {

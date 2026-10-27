@@ -1,7 +1,7 @@
 package echoswagger
 
 import (
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 type NopRoot struct {
@@ -19,7 +19,7 @@ type nopGroup struct {
 }
 
 type nopApi struct {
-	route *echo.Route
+	route echo.RouteInfo
 }
 
 func (r *NopRoot) Add(method string, path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) Api {
@@ -239,6 +239,6 @@ func (a *nopApi) SetSecurityWithScope(_ map[string][]string) Api {
 	return a
 }
 
-func (a *nopApi) Route() *echo.Route {
+func (a *nopApi) Route() echo.RouteInfo {
 	return a.route
 }

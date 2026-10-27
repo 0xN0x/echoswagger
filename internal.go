@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 type ParamInType string
@@ -38,7 +38,7 @@ func (r *Root) docHandler(docPath string) echo.HandlerFunc {
 	if err != nil {
 		panic(err)
 	}
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		cdn := r.ui.CDN
 		if cdn == "" {
 			cdn = DefaultCDN
@@ -86,7 +86,7 @@ func (r *RawDefineDic) getKey(v reflect.Value) (bool, string) {
 	return false, name
 }
 
-func (r *routers) appendRoute(route *echo.Route) *api {
+func (r *routers) appendRoute(route echo.RouteInfo) *api {
 	opr := Operation{
 		Responses: make(map[string]*Response),
 	}

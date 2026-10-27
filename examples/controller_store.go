@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
-	"github.com/pangpanglabs/echoswagger/v2"
+	"github.com/0xN0x/echoswagger/v5"
+	"github.com/labstack/echo/v5"
 )
 
 type StoreController struct{}
@@ -60,18 +60,18 @@ func (c StoreController) Init(g echoswagger.ApiGroup) {
 		SetSummary("Delete purchase order by ID")
 }
 
-func (StoreController) GetInventory(c echo.Context) error {
+func (StoreController) GetInventory(c *echo.Context) error {
 	return nil
 }
 
-func (StoreController) CreateOrder(c echo.Context) error {
+func (StoreController) CreateOrder(c *echo.Context) error {
 	return nil
 }
 
-func (StoreController) GetOrderById(c echo.Context) error {
+func (StoreController) GetOrderById(c *echo.Context) error {
 	return nil
 }
 
-func (StoreController) DeleteOrderById(c echo.Context) error {
+func (StoreController) DeleteOrderById(c *echo.Context) error {
 	return nil
 }

@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,7 +14,7 @@ func TestSpec(t *testing.T) {
 	t.Run("Basic", func(t *testing.T) {
 		r := prepareApiRoot()
 		e := r.(*Root).echo
-		req := httptest.NewRequest(echo.GET, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		j := `{"swagger":"2.0","info":{"title":"Project APIs","version":""},"host":"example.com","paths":{}}`
@@ -28,7 +27,7 @@ func TestSpec(t *testing.T) {
 	t.Run("BasicGenerater", func(t *testing.T) {
 		r := prepareApiRoot()
 		e := r.(*Root).echo
-		req := httptest.NewRequest(echo.GET, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		j := `{"swagger":"2.0","info":{"title":"Project APIs","version":""},"paths":{}}`
@@ -43,7 +42,7 @@ func TestSpec(t *testing.T) {
 		r := prepareApiRoot()
 		r.SetUI(UISetting{DetachSpec: false})
 		e := r.(*Root).echo
-		req := httptest.NewRequest(echo.GET, "/doc", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		j := `{"swagger":"2.0","info":{"title":"Project APIs","version":""},"paths":{}}`
@@ -56,7 +55,7 @@ func TestSpec(t *testing.T) {
 
 	t.Run("Methods", func(t *testing.T) {
 		r := prepareApiRoot()
-		var h echo.HandlerFunc
+		h := testHandler
 		r.GET("/", h)
 		r.POST("/", h)
 		r.PUT("/", h)
@@ -65,7 +64,7 @@ func TestSpec(t *testing.T) {
 		r.HEAD("/", h)
 		r.PATCH("/", h)
 		e := r.(*Root).echo
-		req := httptest.NewRequest(echo.GET, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		if assert.NoError(t, r.(*Root).specHandler("/doc")(c)) {
@@ -87,13 +86,13 @@ func TestSpec(t *testing.T) {
 		e := r.(*Root).echo
 		g := r.Group("Users", "users")
 
-		var ha echo.HandlerFunc
+		ha := testHandler
 		g.DELETE("/:id", ha)
 
-		var hb echo.HandlerFunc
+		hb := testHandler
 		r.GET("/ping", hb)
 
-		req := httptest.NewRequest(echo.GET, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		j := `{"swagger":"2.0","info":{"title":"Project APIs","version":""},"host":"example.com","paths":{"/ping":{"get":{"responses":{"default":{"description":"successful operation"}}}},"/users/{id}":{"delete":{"tags":["Users"],"responses":{"default":{"description":"successful operation"}}}}},"tags":[{"name":"Users"}]}`
@@ -181,7 +180,7 @@ func TestReferer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := prepareApiRoot()
 			e := r.(*Root).echo
-			req := httptest.NewRequest(echo.GET, "http://127.0.0.1/doc/swagger.json", nil)
+			req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/doc/swagger.json", nil)
 			req.Header.Add("referer", tt.referer)
 			rec := httptest.NewRecorder()
 			c := e.NewContext(req, rec)
@@ -209,7 +208,7 @@ func TestAddDefinition(t *testing.T) {
 	}
 	var da DA
 	r := prepareApiRoot()
-	var h echo.HandlerFunc
+	h := testHandler
 	a := r.GET("/", h)
 	a.AddParamBody(&da, "DA", "DA Struct", false)
 	assert.Equal(t, len(a.(*api).operation.Parameters), 1)
@@ -224,7 +223,7 @@ func TestAddDefinition(t *testing.T) {
 	assert.Equal(t, reflect.ValueOf(&da.DB).Elem(), (*a.(*api).defs)[""].Value)
 
 	e := r.(*Root).echo
-	req := httptest.NewRequest(echo.GET, "/doc/swagger.json", nil)
+	req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	if assert.NoError(t, r.(*Root).specHandler("/doc")(c)) {

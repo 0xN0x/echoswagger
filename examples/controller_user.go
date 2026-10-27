@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
-	"github.com/pangpanglabs/echoswagger/v2"
+	"github.com/0xN0x/echoswagger/v5"
+	"github.com/labstack/echo/v5"
 )
 
 type UserController struct{}
@@ -85,34 +85,34 @@ func (c UserController) Init(g echoswagger.ApiGroup) {
 		SetSummary("Delete user")
 }
 
-func (UserController) Create(c echo.Context) error {
+func (UserController) Create(c *echo.Context) error {
 	return nil
 }
 
-func (UserController) CreateWithArray(c echo.Context) error {
+func (UserController) CreateWithArray(c *echo.Context) error {
 	return nil
 }
 
-func (UserController) CreateWithList(c echo.Context) error {
+func (UserController) CreateWithList(c *echo.Context) error {
 	return nil
 }
 
-func (UserController) Login(c echo.Context) error {
+func (UserController) Login(c *echo.Context) error {
 	return nil
 }
 
-func (UserController) Logout(c echo.Context) error {
+func (UserController) Logout(c *echo.Context) error {
 	return nil
 }
 
-func (UserController) GetByUsername(c echo.Context) error {
+func (UserController) GetByUsername(c *echo.Context) error {
 	return nil
 }
 
-func (UserController) UpdateByUsername(c echo.Context) error {
+func (UserController) UpdateByUsername(c *echo.Context) error {
 	return nil
 }
 
-func (UserController) DeleteByUsername(c echo.Context) error {
+func (UserController) DeleteByUsername(c *echo.Context) error {
 	return nil
 }

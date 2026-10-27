@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 /*
@@ -186,7 +186,7 @@ type Api interface {
 	SetSecurityWithScope(s map[string][]string) Api
 
 	// Route returns the embedded `echo.Route` instance.
-	Route() *echo.Route
+	Route() echo.RouteInfo
 }
 
 type routers struct {
@@ -212,7 +212,7 @@ type group struct {
 }
 
 type api struct {
-	route     *echo.Route
+	route     echo.RouteInfo
 	defs      *RawDefineDic
 	security  []map[string][]string
 	operation Operation
@@ -602,6 +602,6 @@ func (a *api) SetSecurityWithScope(s map[string][]string) Api {
 	return a
 }
 
-func (a *api) Route() *echo.Route {
+func (a *api) Route() echo.RouteInfo {
 	return a.route
 }

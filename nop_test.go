@@ -4,56 +4,55 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 )
 
-func testHandler(echo.Context) error { return nil }
+func testHandler(*echo.Context) error { return nil }
 
 func TestNop(t *testing.T) {
 	e := echo.New()
 	r := NewNop(e)
 
 	path := "test"
-	expectHandler := "github.com/pangpanglabs/echoswagger/v2.testHandler"
 	a := r.Add(http.MethodConnect, path, testHandler)
 	assert.Equal(t, a.Route().Method, http.MethodConnect)
-	assert.Equal(t, a.Route().Name, expectHandler)
+	assert.Equal(t, a.Route().Name, a.Route().Method+":"+a.Route().Path)
 	assert.Equal(t, a.Route().Path, path)
 
 	a = r.GET(path, testHandler)
 	assert.Equal(t, a.Route().Method, http.MethodGet)
-	assert.Equal(t, a.Route().Name, expectHandler)
+	assert.Equal(t, a.Route().Name, a.Route().Method+":"+a.Route().Path)
 	assert.Equal(t, a.Route().Path, path)
 
 	a = r.POST(path, testHandler)
 	assert.Equal(t, a.Route().Method, http.MethodPost)
-	assert.Equal(t, a.Route().Name, expectHandler)
+	assert.Equal(t, a.Route().Name, a.Route().Method+":"+a.Route().Path)
 	assert.Equal(t, a.Route().Path, path)
 
 	a = r.PUT(path, testHandler)
 	assert.Equal(t, a.Route().Method, http.MethodPut)
-	assert.Equal(t, a.Route().Name, expectHandler)
+	assert.Equal(t, a.Route().Name, a.Route().Method+":"+a.Route().Path)
 	assert.Equal(t, a.Route().Path, path)
 
 	a = r.DELETE(path, testHandler)
 	assert.Equal(t, a.Route().Method, http.MethodDelete)
-	assert.Equal(t, a.Route().Name, expectHandler)
+	assert.Equal(t, a.Route().Name, a.Route().Method+":"+a.Route().Path)
 	assert.Equal(t, a.Route().Path, path)
 
 	a = r.OPTIONS(path, testHandler)
 	assert.Equal(t, a.Route().Method, http.MethodOptions)
-	assert.Equal(t, a.Route().Name, expectHandler)
+	assert.Equal(t, a.Route().Name, a.Route().Method+":"+a.Route().Path)
 	assert.Equal(t, a.Route().Path, path)
 
 	a = r.HEAD(path, testHandler)
 	assert.Equal(t, a.Route().Method, http.MethodHead)
-	assert.Equal(t, a.Route().Name, expectHandler)
+	assert.Equal(t, a.Route().Name, a.Route().Method+":"+a.Route().Path)
 	assert.Equal(t, a.Route().Path, path)
 
 	a = r.PATCH(path, testHandler)
 	assert.Equal(t, a.Route().Method, http.MethodPatch)
-	assert.Equal(t, a.Route().Name, expectHandler)
+	assert.Equal(t, a.Route().Name, a.Route().Method+":"+a.Route().Path)
 	assert.Equal(t, a.Route().Path, path)
 
 	g := r.Group("", "g/")
@@ -77,42 +76,42 @@ func TestNop(t *testing.T) {
 	expectPath := "g/" + path
 	a = g.Add(http.MethodConnect, path, testHandler)
 	assert.Equal(t, a.Route().Method, http.MethodConnect)
-	assert.Equal(t, a.Route().Name, expectHandler)
+	assert.Equal(t, a.Route().Name, a.Route().Method+":"+a.Route().Path)
 	assert.Equal(t, a.Route().Path, expectPath)
 
 	a = g.GET(path, testHandler)
 	assert.Equal(t, a.Route().Method, http.MethodGet)
-	assert.Equal(t, a.Route().Name, expectHandler)
+	assert.Equal(t, a.Route().Name, a.Route().Method+":"+a.Route().Path)
 	assert.Equal(t, a.Route().Path, expectPath)
 
 	a = g.POST(path, testHandler)
 	assert.Equal(t, a.Route().Method, http.MethodPost)
-	assert.Equal(t, a.Route().Name, expectHandler)
+	assert.Equal(t, a.Route().Name, a.Route().Method+":"+a.Route().Path)
 	assert.Equal(t, a.Route().Path, expectPath)
 
 	a = g.PUT(path, testHandler)
 	assert.Equal(t, a.Route().Method, http.MethodPut)
-	assert.Equal(t, a.Route().Name, expectHandler)
+	assert.Equal(t, a.Route().Name, a.Route().Method+":"+a.Route().Path)
 	assert.Equal(t, a.Route().Path, expectPath)
 
 	a = g.DELETE(path, testHandler)
 	assert.Equal(t, a.Route().Method, http.MethodDelete)
-	assert.Equal(t, a.Route().Name, expectHandler)
+	assert.Equal(t, a.Route().Name, a.Route().Method+":"+a.Route().Path)
 	assert.Equal(t, a.Route().Path, expectPath)
 
 	a = g.OPTIONS(path, testHandler)
 	assert.Equal(t, a.Route().Method, http.MethodOptions)
-	assert.Equal(t, a.Route().Name, expectHandler)
+	assert.Equal(t, a.Route().Name, a.Route().Method+":"+a.Route().Path)
 	assert.Equal(t, a.Route().Path, expectPath)
 
 	a = g.HEAD(path, testHandler)
 	assert.Equal(t, a.Route().Method, http.MethodHead)
-	assert.Equal(t, a.Route().Name, expectHandler)
+	assert.Equal(t, a.Route().Name, a.Route().Method+":"+a.Route().Path)
 	assert.Equal(t, a.Route().Path, expectPath)
 
 	a = g.PATCH(path, testHandler)
 	assert.Equal(t, a.Route().Method, http.MethodPatch)
-	assert.Equal(t, a.Route().Name, expectHandler)
+	assert.Equal(t, a.Route().Name, a.Route().Method+":"+a.Route().Path)
 	assert.Equal(t, a.Route().Path, expectPath)
 
 	assert.Equal(t, g.SetDescription(""), g)
