@@ -3,8 +3,8 @@ package main
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
-	"github.com/pangpanglabs/echoswagger/v2"
+	"github.com/0xN0x/echoswagger/v5"
+	"github.com/labstack/echo/v5"
 )
 
 type PetController struct{}
@@ -120,34 +120,34 @@ func (c PetController) Init(g echoswagger.ApiGroup) {
 		SetSecurityWithScope(security)
 }
 
-func (PetController) Create(c echo.Context) error {
+func (PetController) Create(c *echo.Context) error {
 	return nil
 }
 
-func (PetController) Update(c echo.Context) error {
+func (PetController) Update(c *echo.Context) error {
 	return nil
 }
 
-func (PetController) FindByStatus(c echo.Context) error {
+func (PetController) FindByStatus(c *echo.Context) error {
 	return nil
 }
 
-func (PetController) FindByTags(c echo.Context) error {
+func (PetController) FindByTags(c *echo.Context) error {
 	return nil
 }
 
-func (PetController) GetById(c echo.Context) error {
+func (PetController) GetById(c *echo.Context) error {
 	return nil
 }
 
-func (PetController) CreateById(c echo.Context) error {
+func (PetController) CreateById(c *echo.Context) error {
 	return nil
 }
 
-func (PetController) DeleteById(c echo.Context) error {
+func (PetController) DeleteById(c *echo.Context) error {
 	return nil
 }
 
-func (PetController) UploadImageById(c echo.Context) error {
+func (PetController) UploadImageById(c *echo.Context) error {
 	return nil
 }

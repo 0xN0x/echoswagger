@@ -3,10 +3,10 @@ English | [简体中文](./README_zh-CN.md)
 # Echoswagger
 [Swagger UI](https://github.com/swagger-api/swagger-ui) generator for [Echo](https://github.com/labstack/echo) framework
 
-[![Ci](https://github.com/pangpanglabs/echoswagger/actions/workflows/ci.yml/badge.svg?branch=v2)](https://github.com/pangpanglabs/echoswagger/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/pangpanglabs/echoswagger)](https://goreportcard.com/report/github.com/pangpanglabs/echoswagger)
-[![Go Reference](https://pkg.go.dev/badge/github.com/pangpanglabs/echoswagger.svg)](https://pkg.go.dev/github.com/pangpanglabs/echoswagger)
-[![codecov](https://codecov.io/gh/pangpanglabs/echoswagger/branch/v2/graph/badge.svg)](https://codecov.io/gh/pangpanglabs/echoswagger/branch/v2)
+[![Ci](https://github.com/0xN0x/echoswagger/actions/workflows/ci.yml/badge.svg?branch=v5)](https://github.com/0xN0x/echoswagger/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/0xN0x/echoswagger/v5)](https://goreportcard.com/report/github.com/0xN0x/echoswagger/v5)
+[![Go Reference](https://pkg.go.dev/badge/github.com/0xN0x/echoswagger/v5.svg)](https://pkg.go.dev/github.com/0xN0x/echoswagger/v5)
+[![codecov](https://codecov.io/gh/0xN0x/echoswagger/branch/v5/graph/badge.svg)](https://codecov.io/gh/0xN0x/echoswagger/branch/v5)
 
 ## Feature
 - No SwaggerUI HTML/CSS dependency
@@ -16,19 +16,25 @@ English | [简体中文](./README_zh-CN.md)
 
 ## Installation
 ```
-go get github.com/pangpanglabs/echoswagger
+go get github.com/0xN0x/echoswagger/v5
 ```
+Requires Go 1.25 or later.
 
-## Go modules support
-If your project has migrated to Go modules, you can:
-- Choose v2 version of Echoswagger for Echo version v4.
-- Choose v1 version of Echoswagger for Echo version <= v3.
+## Versions
+Starting with v5, the major version of Echoswagger matches the major version of Echo it supports.
 
-To use v2 version, just do:
-- `go get github.com/pangpanglabs/echoswagger/v2`
-- import `github.com/labstack/echo/v4` and `github.com/pangpanglabs/echoswagger/v2` in your project
+| Echo | Echoswagger | Module path | Branch |
+|------|-------------|-------------|--------|
+| v5 | v5 | `github.com/0xN0x/echoswagger/v5` | `v5` |
+| v4 | v2 | `github.com/pangpanglabs/echoswagger/v2` | `v2` |
+| <= v3 | v1 | `github.com/pangpanglabs/echoswagger` | `master` |
 
-Meanwhile, v1 version will still be updated if needed. For more details of Go modules, please refer to [Go Wiki](https://github.com/golang/go/wiki/Modules).
+There is no Echoswagger v3 or v4.
+
+#### Upgrading from Echoswagger v2 (Echo v4)
+- Replace the imports `github.com/labstack/echo/v4` → `github.com/labstack/echo/v5` and `github.com/pangpanglabs/echoswagger/v2` → `github.com/0xN0x/echoswagger/v5`.
+- Follow the [Echo v5 migration notes](https://github.com/labstack/echo/blob/v5.4.0/API_CHANGES_V5.md) (handlers now take `*echo.Context`).
+- `Api.Route()` now returns an `echo.RouteInfo` value instead of `*echo.Route`.
 
 ## Example
 ```go
@@ -37,8 +43,8 @@ package main
 import (
 	"net/http"
 
-	"github.com/labstack/echo"
-	"github.com/pangpanglabs/echoswagger"
+	"github.com/labstack/echo/v5"
+	"github.com/0xN0x/echoswagger/v5"
 )
 
 func main() {
@@ -51,7 +57,9 @@ func main() {
 		AddResponse(http.StatusCreated, "successful", nil, nil)
 
 	// Start server
-	r.Echo().Logger.Fatal(r.Echo().Start(":1323"))
+	if err := r.Echo().Start(":1323"); err != nil {
+		r.Echo().Logger.Error("failed to start server", "error", err)
+	}
 }
 
 type User struct {
@@ -59,7 +67,7 @@ type User struct {
 }
 
 // Handler
-func createUser(c echo.Context) error {
+func createUser(c *echo.Context) error {
 	return c.JSON(http.StatusCreated, nil)
 }
 
@@ -163,7 +171,7 @@ a.SetSecurity("JWT").
 	SetSummary("The summary of API").
 	SetDescription("The desc of API")
 ```
-- Get `echo.Route` instance.
+- Get `echo.RouteInfo` of the route.
 ```go
 a.Route()
 ```
@@ -251,4 +259,4 @@ if os.Getenv("env") == "production" {
 
 ## License
 
-[MIT](https://github.com/pangpanglabs/echoswagger/blob/master/LICENSE)
+[MIT](./LICENSE)

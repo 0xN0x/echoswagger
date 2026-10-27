@@ -3,17 +3,17 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
-	"github.com/pangpanglabs/echoswagger/v2"
+	"github.com/0xN0x/echoswagger/v5"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMain(t *testing.T) {
 	e := initServer()
-	req := httptest.NewRequest(echo.GET, "/doc/swagger.json", nil)
+	req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
 	rec := httptest.NewRecorder()
 	c := e.Echo().NewContext(req, rec)
 	b, err := ioutil.ReadFile("./swagger.json")

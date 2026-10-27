@@ -3,10 +3,10 @@
 # Echoswagger
 [Echo](https://github.com/labstack/echo) 框架的 [Swagger UI](https://github.com/swagger-api/swagger-ui) 生成器
 
-[![Ci](https://github.com/pangpanglabs/echoswagger/actions/workflows/ci.yml/badge.svg?branch=v2)](https://github.com/pangpanglabs/echoswagger/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/pangpanglabs/echoswagger)](https://goreportcard.com/report/github.com/pangpanglabs/echoswagger)
-[![Go Reference](https://pkg.go.dev/badge/github.com/pangpanglabs/echoswagger.svg)](https://pkg.go.dev/github.com/pangpanglabs/echoswagger)
-[![codecov](https://codecov.io/gh/pangpanglabs/echoswagger/branch/v2/graph/badge.svg)](https://codecov.io/gh/pangpanglabs/echoswagger/branch/v2)
+[![Ci](https://github.com/0xN0x/echoswagger/actions/workflows/ci.yml/badge.svg?branch=v5)](https://github.com/0xN0x/echoswagger/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/0xN0x/echoswagger/v5)](https://goreportcard.com/report/github.com/0xN0x/echoswagger/v5)
+[![Go Reference](https://pkg.go.dev/badge/github.com/0xN0x/echoswagger/v5.svg)](https://pkg.go.dev/github.com/0xN0x/echoswagger/v5)
+[![codecov](https://codecov.io/gh/0xN0x/echoswagger/branch/v5/graph/badge.svg)](https://codecov.io/gh/0xN0x/echoswagger/branch/v5)
 
 ## 特性
 - 不依赖任何SwaggerUI的HTML/CSS文件
@@ -16,19 +16,25 @@
 
 ## 安装
 ```
-go get github.com/pangpanglabs/echoswagger
+go get github.com/0xN0x/echoswagger/v5
 ```
+需要 Go 1.25 及以上版本。
 
-## Go modules 支持
-如果你的项目已经使用Go modules，你可以:
-- 选择v2版本的Echoswagger搭配Echo v4版本
-- 选择v1版本的Echoswagger搭配Echo v3及以下版本
+## 版本
+从 v5 开始，Echoswagger 的主版本号与其支持的 Echo 主版本号保持一致。
 
-使用v2版本，只需要:
-- `go get github.com/pangpanglabs/echoswagger/v2`
-- 在你的项目中import `github.com/labstack/echo/v4` 和 `github.com/pangpanglabs/echoswagger/v2`
+| Echo | Echoswagger | 模块路径 | 分支 |
+|------|-------------|----------|------|
+| v5 | v5 | `github.com/0xN0x/echoswagger/v5` | `v5` |
+| v4 | v2 | `github.com/pangpanglabs/echoswagger/v2` | `v2` |
+| <= v3 | v1 | `github.com/pangpanglabs/echoswagger` | `master` |
 
-同时，v1版本将继续更新。关于Go modules的详细内容，请参考 [Go Wiki](https://github.com/golang/go/wiki/Modules)
+不存在 Echoswagger v3 和 v4。
+
+#### 从 Echoswagger v2 (Echo v4) 升级
+- 将 import `github.com/labstack/echo/v4` 替换为 `github.com/labstack/echo/v5`，`github.com/pangpanglabs/echoswagger/v2` 替换为 `github.com/0xN0x/echoswagger/v5`。
+- 参考 [Echo v5 迁移说明](https://github.com/labstack/echo/blob/v5.4.0/API_CHANGES_V5.md)（handler 现在接收 `*echo.Context`）。
+- `Api.Route()` 现在返回 `echo.RouteInfo` 值，而不是 `*echo.Route`。
 
 ## 示例
 ```go
@@ -37,8 +43,8 @@ package main
 import (
 	"net/http"
 
-	"github.com/labstack/echo"
-	"github.com/pangpanglabs/echoswagger"
+	"github.com/labstack/echo/v5"
+	"github.com/0xN0x/echoswagger/v5"
 )
 
 func main() {
@@ -51,7 +57,9 @@ func main() {
 		AddResponse(http.StatusCreated, "successful", nil, nil)
 
 	// Start server
-	r.Echo().Logger.Fatal(r.Echo().Start(":1323"))
+	if err := r.Echo().Start(":1323"); err != nil {
+		r.Echo().Logger.Error("failed to start server", "error", err)
+	}
 }
 
 type User struct {
@@ -59,7 +67,7 @@ type User struct {
 }
 
 // Handler
-func createUser(c echo.Context) error {
+func createUser(c *echo.Context) error {
 	return c.JSON(http.StatusCreated, nil)
 }
 
@@ -163,7 +171,7 @@ a.SetSecurity("JWT").
 	SetSummary("The summary of API").
 	SetDescription("The desc of API")
 ```
-- 获取`echo.Route`实例。
+- 获取路由的`echo.RouteInfo`。
 ```go
 a.Route()
 ```
@@ -251,4 +259,4 @@ if os.Getenv("env") == "production" {
 
 ## License
 
-[MIT](https://github.com/pangpanglabs/echoswagger/blob/master/LICENSE)
+[MIT](./LICENSE)

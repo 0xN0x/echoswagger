@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"reflect"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 const (
@@ -16,7 +16,7 @@ const (
 )
 
 func (r *Root) specHandler(docPath string) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		spec, err := r.GetSpec(c, docPath)
 		if err != nil {
 			return c.String(http.StatusInternalServerError, err.Error())
@@ -35,7 +35,7 @@ func (r *Root) specHandler(docPath string) echo.HandlerFunc {
 }
 
 // Generate swagger spec data, without host & basePath info
-func (r *Root) GetSpec(c echo.Context, docPath string) (Swagger, error) {
+func (r *Root) GetSpec(c *echo.Context, docPath string) (Swagger, error) {
 	r.once.Do(func() {
 		r.err = r.genSpec(c)
 		r.cleanUp()
@@ -46,7 +46,7 @@ func (r *Root) GetSpec(c echo.Context, docPath string) (Swagger, error) {
 	return *r.spec, nil
 }
 
-func (r *Root) genSpec(c echo.Context) error {
+func (r *Root) genSpec(c *echo.Context) error {
 	r.spec.Swagger = SwaggerVersion
 	r.spec.Paths = make(map[string]interface{})
 
@@ -100,19 +100,19 @@ func (r *Root) transfer(a *api) error {
 
 func (p *Path) oprationAssign(method string, operation *Operation) {
 	switch method {
-	case echo.GET:
+	case http.MethodGet:
 		p.Get = operation
-	case echo.POST:
+	case http.MethodPost:
 		p.Post = operation
-	case echo.PUT:
+	case http.MethodPut:
 		p.Put = operation
-	case echo.DELETE:
+	case http.MethodDelete:
 		p.Delete = operation
-	case echo.OPTIONS:
+	case http.MethodOptions:
 		p.Options = operation
-	case echo.HEAD:
+	case http.MethodHead:
 		p.Head = operation
-	case echo.PATCH:
+	case http.MethodPatch:
 		p.Patch = operation
 	}
 }

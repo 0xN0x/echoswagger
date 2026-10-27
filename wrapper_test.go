@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,7 +24,7 @@ func prepareApiGroup() ApiGroup {
 
 func prepareApi() Api {
 	g := prepareApiGroup()
-	var h func(e echo.Context) error
+	h := testHandler
 	return g.POST("", h)
 }
 
@@ -84,8 +84,8 @@ func TestNew(t *testing.T) {
 				}
 
 				assert.NotNil(t, r.echo)
-				assert.Len(t, r.echo.Routes(), 2)
-				res := r.echo.Routes()
+				assert.Len(t, r.echo.Router().Routes(), 2)
+				res := r.echo.Router().Routes()
 				paths := []string{res[0].Path, res[1].Path}
 				assert.ElementsMatch(t, paths, tt.expectPaths)
 			}
@@ -121,8 +121,8 @@ func TestPath(t *testing.T) {
 			apiRoot := New(echo.New(), tt.docInput, nil)
 			r := apiRoot.(*Root)
 			assert.NotNil(t, r.echo)
-			assert.Len(t, r.echo.Routes(), 2)
-			res := r.echo.Routes()
+			assert.Len(t, r.echo.Router().Routes(), 2)
+			res := r.echo.Router().Routes()
 			paths := []string{res[0].Path, res[1].Path}
 			assert.ElementsMatch(t, paths, []string{tt.docOutput, tt.specOutput})
 		})
@@ -156,7 +156,7 @@ func TestBindGroup(t *testing.T) {
 	e := r.Echo()
 	apiGroup := e.Group("/api")
 
-	var h echo.HandlerFunc
+	h := testHandler
 	t.Run("Include", func(t *testing.T) {
 		v1Group := apiGroup.Group("/v1")
 		g := r.BindGroup("APIv1", v1Group)
@@ -179,7 +179,7 @@ func TestBindGroup(t *testing.T) {
 
 func TestRouters(t *testing.T) {
 	r := prepareApiRoot()
-	var h echo.HandlerFunc
+	h := testHandler
 	r.GET("/:id", h)
 	r.POST("/:id", h)
 	r.PUT("/:id", h)
@@ -355,7 +355,7 @@ func TestUI(t *testing.T) {
 	t.Run("DefaultCDN", func(t *testing.T) {
 		r := New(echo.New(), "doc/", nil)
 		se := r.(*Root)
-		req := httptest.NewRequest(echo.GET, "/doc/", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/", nil)
 		rec := httptest.NewRecorder()
 		c := se.echo.NewContext(req, rec)
 		h := se.docHandler("doc/")
@@ -369,7 +369,7 @@ func TestUI(t *testing.T) {
 	t.Run("SetUI", func(t *testing.T) {
 		r := New(echo.New(), "doc/", nil)
 		se := r.(*Root)
-		req := httptest.NewRequest(echo.GET, "/doc/", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/", nil)
 		rec := httptest.NewRecorder()
 		c := se.echo.NewContext(req, rec)
 		h := se.docHandler("doc/")
@@ -518,9 +518,9 @@ func TestHandlers(t *testing.T) {
 	t.Run("ErrorGroupSecurity", func(t *testing.T) {
 		r := prepareApiRoot()
 		e := r.(*Root).echo
-		var h echo.HandlerFunc
+		h := testHandler
 		r.Group("G", "/g").SetSecurity("JWT").GET("/", h)
-		req := httptest.NewRequest(echo.GET, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		if assert.NoError(t, r.(*Root).specHandler("/doc")(c)) {
@@ -534,9 +534,9 @@ func TestHandlers(t *testing.T) {
 	t.Run("ErrorApiSecurity", func(t *testing.T) {
 		r := prepareApiRoot()
 		e := r.(*Root).echo
-		var h echo.HandlerFunc
+		h := testHandler
 		r.GET("/", h).SetSecurity("JWT")
-		req := httptest.NewRequest(echo.GET, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		if assert.NoError(t, r.(*Root).specHandler("/doc")(c)) {

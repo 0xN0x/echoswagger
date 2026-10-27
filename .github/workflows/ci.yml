@@ -2,34 +2,33 @@ name: Go
 
 on:
   push:
-    branches: [ master, v2 ]
+    branches: [ master, v2, v5 ]
   pull_request:
-    branches: [ master, v2 ]
+    branches: [ master, v2, v5 ]
 
 jobs:
 
   build:
     strategy:
       matrix:
-        go-version: ["1.16", "1.13"]
+        go-version: ["1.25", "1.26"]
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v7
+
     - name: Set up Go ${{ matrix.go-version }}
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v7
       with:
         go-version: ${{ matrix.go-version }}
-      id: go
-      
-    - uses: actions/checkout@v2
 
     - name: Build
       run: go build -v ./...
 
     - name: Test
       run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
-      
+
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v7
       with:
-        file: ./coverage.txt
+        files: ./coverage.txt
         fail_ci_if_error: false
