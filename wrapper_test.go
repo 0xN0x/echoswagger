@@ -41,7 +41,7 @@ func TestNew(t *testing.T) {
 			echo:        echo.New(),
 			docPath:     "doc/",
 			info:        nil,
-			expectPaths: []string{"/doc/", "/doc/swagger.json"},
+			expectPaths: []string{"/doc/", "/doc/openapi.json"},
 			panic:       false,
 			name:        "Normal",
 		},
@@ -54,7 +54,7 @@ func TestNew(t *testing.T) {
 					URL: "https://github.com/pangpanglabs/echoswagger",
 				},
 			},
-			expectPaths: []string{"/doc", "/doc/swagger.json"},
+			expectPaths: []string{"/doc", "/doc/openapi.json"},
 			panic:       false,
 			name:        "Path slash suffix",
 		},
@@ -102,17 +102,17 @@ func TestPath(t *testing.T) {
 		{
 			docInput:   "doc/",
 			docOutput:  "/doc/",
-			specOutput: "/doc/swagger.json",
+			specOutput: "/doc/openapi.json",
 			name:       "A",
 		}, {
 			docInput:   "",
 			docOutput:  "/",
-			specOutput: "/swagger.json",
+			specOutput: "/openapi.json",
 			name:       "B",
 		}, {
 			docInput:   "/doc",
 			docOutput:  "/doc",
-			specOutput: "/doc/swagger.json",
+			specOutput: "/doc/openapi.json",
 			name:       "C",
 		},
 	}
@@ -210,13 +210,17 @@ func TestAddParam(t *testing.T) {
 
 	t.Run("File", func(t *testing.T) {
 		a := prepareApi()
+		a.AddParamForm("", name, desc, false)
 		a.AddParamFile(name, desc, true)
-		assert.Len(t, a.(*api).operation.Parameters, 1)
-		assert.Equal(t, a.(*api).operation.Parameters[0].Name, name)
-		assert.Equal(t, a.(*api).operation.Parameters[0].In, string(ParamInFormData))
-		assert.Equal(t, a.(*api).operation.Parameters[0].Description, desc)
-		assert.Equal(t, a.(*api).operation.Parameters[0].Required, true)
-		assert.Equal(t, a.(*api).operation.Parameters[0].Type, "file")
+		s := a.(*api).reqSchema
+		assert.Len(t, a.(*api).operation.Parameters, 0)
+		assert.Len(t, s.Properties, 2)
+		assert.Equal(t, &JSONSchema{Type: "string", Description: desc, ContentMediaType: "application/octet-stream"}, s.Properties["name_"])
+		assert.Equal(t, []string{"name_"}, s.Required)
+		assert.True(t, a.(*api).operation.RequestBody.Required)
+		// a file can only be sent with multipart, whatever the content types set
+		a.SetRequestContentType("application/x-www-form-urlencoded")
+		assert.Equal(t, []string{"multipart/form-data"}, a.(*api).requestTypes(nil))
 	})
 
 	t.Run("Path", func(t *testing.T) {
@@ -227,13 +231,13 @@ func TestAddParam(t *testing.T) {
 		assert.Equal(t, a.(*api).operation.Parameters[0].In, string(ParamInPath))
 		assert.Equal(t, a.(*api).operation.Parameters[0].Description, desc)
 		assert.Equal(t, a.(*api).operation.Parameters[0].Required, true)
-		assert.Equal(t, a.(*api).operation.Parameters[0].Type, "string")
+		assert.Equal(t, a.(*api).operation.Parameters[0].Schema.Type, JSONType("string"))
 
 		a.AddParamPathNested(&nested{})
 		assert.Len(t, a.(*api).operation.Parameters, 2)
 		assert.Equal(t, a.(*api).operation.Parameters[1].Name, "name_")
 		assert.Equal(t, a.(*api).operation.Parameters[1].In, string(ParamInPath))
-		assert.Equal(t, a.(*api).operation.Parameters[1].Type, "string")
+		assert.Equal(t, a.(*api).operation.Parameters[1].Schema.Type, JSONType("string"))
 	})
 
 	t.Run("Query", func(t *testing.T) {
@@ -244,30 +248,38 @@ func TestAddParam(t *testing.T) {
 		assert.Equal(t, a.(*api).operation.Parameters[0].In, string(ParamInQuery))
 		assert.Equal(t, a.(*api).operation.Parameters[0].Description, desc)
 		assert.Equal(t, a.(*api).operation.Parameters[0].Required, true)
-		assert.Equal(t, a.(*api).operation.Parameters[0].Type, "string")
+		assert.Equal(t, a.(*api).operation.Parameters[0].Schema.Type, JSONType("string"))
 
 		a.AddParamQueryNested(&nested{})
 		assert.Len(t, a.(*api).operation.Parameters, 2)
 		assert.Equal(t, a.(*api).operation.Parameters[1].Name, "name_")
 		assert.Equal(t, a.(*api).operation.Parameters[1].In, string(ParamInQuery))
-		assert.Equal(t, a.(*api).operation.Parameters[1].Type, "string")
+		assert.Equal(t, a.(*api).operation.Parameters[1].Schema.Type, JSONType("string"))
 	})
 
 	t.Run("FormData", func(t *testing.T) {
 		a := prepareApi()
 		a.AddParamForm(time.Now(), name, desc, true)
-		assert.Len(t, a.(*api).operation.Parameters, 1)
-		assert.Equal(t, a.(*api).operation.Parameters[0].Name, name)
-		assert.Equal(t, a.(*api).operation.Parameters[0].In, string(ParamInFormData))
-		assert.Equal(t, a.(*api).operation.Parameters[0].Description, desc)
-		assert.Equal(t, a.(*api).operation.Parameters[0].Required, true)
-		assert.Equal(t, a.(*api).operation.Parameters[0].Type, "string")
+		s := a.(*api).reqSchema
+		assert.Len(t, a.(*api).operation.Parameters, 0)
+		assert.Equal(t, &JSONSchema{Type: "string", Format: "date-time", Description: desc}, s.Properties[name])
+		assert.Equal(t, []string{name}, s.Required)
 
 		a.AddParamFormNested(&nested{})
-		assert.Len(t, a.(*api).operation.Parameters, 2)
-		assert.Equal(t, a.(*api).operation.Parameters[1].Name, "name_")
-		assert.Equal(t, a.(*api).operation.Parameters[1].In, string(ParamInFormData))
-		assert.Equal(t, a.(*api).operation.Parameters[1].Type, "string")
+		assert.Len(t, s.Properties, 2)
+		assert.Equal(t, s.Properties["name_"].Type, JSONType("string"))
+
+		assert.Equal(t, []string{"application/x-www-form-urlencoded"}, a.(*api).requestTypes(nil))
+		assert.Equal(t, []string{"multipart/form-data"}, a.(*api).requestTypes([]string{"application/json", "multipart/form-data"}))
+
+		assert.Panics(t, func() {
+			a.AddParamBody(nested{}, "", true)
+		})
+		b := prepareApi()
+		b.AddParamBody(nested{}, "", true)
+		assert.Panics(t, func() {
+			b.AddParamForm("", name, desc, true)
+		})
 	})
 
 	t.Run("Header", func(t *testing.T) {
@@ -278,13 +290,13 @@ func TestAddParam(t *testing.T) {
 		assert.Equal(t, a.(*api).operation.Parameters[0].In, string(ParamInHeader))
 		assert.Equal(t, a.(*api).operation.Parameters[0].Description, desc)
 		assert.Equal(t, a.(*api).operation.Parameters[0].Required, true)
-		assert.Equal(t, a.(*api).operation.Parameters[0].Type, "string")
+		assert.Equal(t, a.(*api).operation.Parameters[0].Schema.Type, JSONType("string"))
 
 		a.AddParamHeaderNested(&nested{})
 		assert.Len(t, a.(*api).operation.Parameters, 2)
 		assert.Equal(t, a.(*api).operation.Parameters[1].Name, "name_")
 		assert.Equal(t, a.(*api).operation.Parameters[1].In, string(ParamInHeader))
-		assert.Equal(t, a.(*api).operation.Parameters[1].Type, "string")
+		assert.Equal(t, a.(*api).operation.Parameters[1].Schema.Type, JSONType("string"))
 	})
 }
 
@@ -296,26 +308,22 @@ func TestAddSchema(t *testing.T) {
 
 	t.Run("Multiple", func(t *testing.T) {
 		a := prepareApi()
-		a.AddParamBody(&body{}, "body", "body desc", true)
-		assert.Len(t, a.(*api).operation.Parameters, 1)
-		assert.Equal(t, a.(*api).operation.Parameters[0].Name, "body")
-		assert.Equal(t, a.(*api).operation.Parameters[0].In, string(ParamInBody))
-		assert.Equal(t, a.(*api).operation.Parameters[0].Description, "body desc")
-		assert.Equal(t, a.(*api).operation.Parameters[0].Required, true)
+		a.AddParamBody(&body{}, "body desc", true)
+		assert.Len(t, a.(*api).operation.Parameters, 0)
+		assert.Equal(t, a.(*api).operation.RequestBody.Description, "body desc")
+		assert.Equal(t, a.(*api).operation.RequestBody.Required, true)
 
 		assert.Panics(t, func() {
-			a.AddParamBody(body{}, "body", "body desc", true)
+			a.AddParamBody(body{}, "body desc", true)
 		})
 	})
 
 	t.Run("GetKey", func(t *testing.T) {
 		a := prepareApi()
-		a.AddParamBody(&body{}, "body", "body desc", true)
-		assert.Len(t, a.(*api).operation.Parameters, 1)
-		assert.Equal(t, a.(*api).operation.Parameters[0].Name, "body")
-		assert.Equal(t, a.(*api).operation.Parameters[0].In, string(ParamInBody))
-		assert.Equal(t, a.(*api).operation.Parameters[0].Description, "body desc")
-		assert.Equal(t, a.(*api).operation.Parameters[0].Required, true)
+		a.AddParamBody(&body{}, "body desc", true)
+		assert.Len(t, a.(*api).operation.Parameters, 0)
+		assert.Equal(t, a.(*api).operation.RequestBody.Description, "body desc")
+		assert.Equal(t, a.(*api).operation.RequestBody.Required, true)
 
 		a.AddResponse(http.StatusOK, "response desc", body{}, nil)
 		ca := strconv.Itoa(http.StatusOK)
@@ -403,7 +411,7 @@ func TestScheme(t *testing.T) {
 	r := prepareApiRoot()
 	schemes := []string{"http", "https"}
 	r.SetScheme(schemes...)
-	assert.ElementsMatch(t, r.(*Root).spec.Schemes, schemes)
+	assert.ElementsMatch(t, r.(*Root).schemes, schemes)
 
 	assert.Panics(t, func() {
 		r.SetScheme("grpc")
@@ -432,10 +440,10 @@ func TestContentType(t *testing.T) {
 		r.SetResponseContentType(p...)
 		assert.NotNil(t, r.(*Root))
 		assert.NotNil(t, r.(*Root).spec)
-		assert.Len(t, r.(*Root).spec.Consumes, 2)
-		assert.ElementsMatch(t, r.(*Root).spec.Consumes, c)
-		assert.Len(t, r.(*Root).spec.Produces, 3)
-		assert.ElementsMatch(t, r.(*Root).spec.Produces, p)
+		assert.Len(t, r.(*Root).consumes, 2)
+		assert.ElementsMatch(t, r.(*Root).consumes, c)
+		assert.Len(t, r.(*Root).produces, 3)
+		assert.ElementsMatch(t, r.(*Root).produces, p)
 	})
 
 	t.Run("In Api", func(t *testing.T) {
@@ -443,10 +451,10 @@ func TestContentType(t *testing.T) {
 		a.SetRequestContentType(c...)
 		a.SetResponseContentType(p...)
 		assert.NotNil(t, a.(*api))
-		assert.Len(t, a.(*api).operation.Consumes, 2)
-		assert.ElementsMatch(t, a.(*api).operation.Consumes, c)
-		assert.Len(t, a.(*api).operation.Produces, 3)
-		assert.ElementsMatch(t, a.(*api).operation.Produces, p)
+		assert.Len(t, a.(*api).consumes, 2)
+		assert.ElementsMatch(t, a.(*api).consumes, c)
+		assert.Len(t, a.(*api).produces, 3)
+		assert.ElementsMatch(t, a.(*api).produces, p)
 	})
 }
 
@@ -520,7 +528,7 @@ func TestHandlers(t *testing.T) {
 		e := r.(*Root).echo
 		h := testHandler
 		r.Group("G", "/g").SetSecurity("JWT").GET("/", h)
-		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/openapi.json", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		if assert.NoError(t, r.(*Root).specHandler("/doc")(c)) {
@@ -536,7 +544,7 @@ func TestHandlers(t *testing.T) {
 		e := r.(*Root).echo
 		h := testHandler
 		r.GET("/", h).SetSecurity("JWT")
-		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/openapi.json", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		if assert.NoError(t, r.(*Root).specHandler("/doc")(c)) {

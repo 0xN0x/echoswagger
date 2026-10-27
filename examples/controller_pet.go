@@ -35,7 +35,7 @@ func (c PetController) Init(g echoswagger.ApiGroup) {
 	}
 	pet := Pet{Name: "doggie"}
 	g.POST("", c.Create).
-		AddParamBody(&pet, "body", "Pet object that needs to be added to the store", true).
+		AddParamBody(&pet, "Pet object that needs to be added to the store", true).
 		AddResponse(http.StatusMethodNotAllowed, "Invalid input", nil, nil).
 		SetRequestContentType("application/json", "application/xml").
 		SetOperationId("addPet").
@@ -43,7 +43,7 @@ func (c PetController) Init(g echoswagger.ApiGroup) {
 		SetSecurityWithScope(security)
 
 	g.PUT("", c.Update).
-		AddParamBody(&pet, "body", "Pet object that needs to be added to the store", true).
+		AddParamBody(&pet, "Pet object that needs to be added to the store", true).
 		AddResponse(http.StatusBadRequest, "Invalid ID supplied", nil, nil).
 		AddResponse(http.StatusNotFound, "Pet not found", nil, nil).
 		AddResponse(http.StatusMethodNotAllowed, "Validation exception", nil, nil).

@@ -14,10 +14,10 @@ func TestSpec(t *testing.T) {
 	t.Run("Basic", func(t *testing.T) {
 		r := prepareApiRoot()
 		e := r.(*Root).echo
-		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/openapi.json", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		j := `{"swagger":"2.0","info":{"title":"Project APIs","version":""},"host":"example.com","paths":{}}`
+		j := `{"openapi":"3.1.2","info":{"title":"Project APIs","version":""},"servers":[{"url":"/"}],"paths":{}}`
 		if assert.NoError(t, r.(*Root).specHandler("/doc/")(c)) {
 			assert.Equal(t, http.StatusOK, rec.Code)
 			assert.JSONEq(t, j, rec.Body.String())
@@ -27,10 +27,10 @@ func TestSpec(t *testing.T) {
 	t.Run("BasicGenerater", func(t *testing.T) {
 		r := prepareApiRoot()
 		e := r.(*Root).echo
-		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/openapi.json", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		j := `{"swagger":"2.0","info":{"title":"Project APIs","version":""},"paths":{}}`
+		j := `{"openapi":"3.1.2","info":{"title":"Project APIs","version":""},"paths":{}}`
 		s, err := r.(*Root).GetSpec(c, "/doc/")
 		assert.Nil(t, err)
 		rs, err := json.Marshal(s)
@@ -45,7 +45,7 @@ func TestSpec(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/doc", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		j := `{"swagger":"2.0","info":{"title":"Project APIs","version":""},"paths":{}}`
+		j := `{"openapi":"3.1.2","info":{"title":"Project APIs","version":""},"paths":{}}`
 		s, err := r.(*Root).GetSpec(c, "/doc/")
 		assert.Nil(t, err)
 		rs, err := json.Marshal(s)
@@ -64,20 +64,20 @@ func TestSpec(t *testing.T) {
 		r.HEAD("/", h)
 		r.PATCH("/", h)
 		e := r.(*Root).echo
-		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/openapi.json", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		if assert.NoError(t, r.(*Root).specHandler("/doc")(c)) {
 			assert.Equal(t, http.StatusOK, rec.Code)
 			s := r.(*Root).spec
 			assert.Len(t, s.Paths, 1)
-			assert.NotNil(t, s.Paths["/"].(*Path).Get)
-			assert.NotNil(t, s.Paths["/"].(*Path).Post)
-			assert.NotNil(t, s.Paths["/"].(*Path).Put)
-			assert.NotNil(t, s.Paths["/"].(*Path).Delete)
-			assert.NotNil(t, s.Paths["/"].(*Path).Options)
-			assert.NotNil(t, s.Paths["/"].(*Path).Head)
-			assert.NotNil(t, s.Paths["/"].(*Path).Patch)
+			assert.NotNil(t, s.Paths["/"].Get)
+			assert.NotNil(t, s.Paths["/"].Post)
+			assert.NotNil(t, s.Paths["/"].Put)
+			assert.NotNil(t, s.Paths["/"].Delete)
+			assert.NotNil(t, s.Paths["/"].Options)
+			assert.NotNil(t, s.Paths["/"].Head)
+			assert.NotNil(t, s.Paths["/"].Patch)
 		}
 	})
 
@@ -92,10 +92,10 @@ func TestSpec(t *testing.T) {
 		hb := testHandler
 		r.GET("/ping", hb)
 
-		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/openapi.json", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		j := `{"swagger":"2.0","info":{"title":"Project APIs","version":""},"host":"example.com","paths":{"/ping":{"get":{"responses":{"default":{"description":"successful operation"}}}},"/users/{id}":{"delete":{"tags":["Users"],"responses":{"default":{"description":"successful operation"}}}}},"tags":[{"name":"Users"}]}`
+		j := `{"openapi":"3.1.2","info":{"title":"Project APIs","version":""},"servers":[{"url":"/"}],"paths":{"/ping":{"get":{"responses":{"default":{"description":"successful operation"}}}},"/users/{id}":{"delete":{"tags":["Users"],"responses":{"default":{"description":"successful operation"}}}}},"tags":[{"name":"Users"}]}`
 		if assert.NoError(t, r.(*Root).specHandler("/doc")(c)) {
 			assert.Equal(t, http.StatusOK, rec.Code)
 			assert.JSONEq(t, j, rec.Body.String())
@@ -111,6 +111,8 @@ func TestSpec(t *testing.T) {
 func TestReferer(t *testing.T) {
 	tests := []struct {
 		name, referer, host, docPath, basePath string
+		schemes                                []string
+		servers                                []string
 	}{
 		{
 			referer:  "http://localhost:1323/doc",
@@ -175,25 +177,51 @@ func TestReferer(t *testing.T) {
 			name:     "I",
 			basePath: "/",
 		},
+		{
+			referer:  "http://localhost:1323/api/v1/doc",
+			host:     "localhost:1323",
+			docPath:  "/doc",
+			name:     "Schemes",
+			basePath: "/api/v1",
+			schemes:  []string{"https", "http"},
+			servers:  []string{"https://localhost:1323/api/v1", "http://localhost:1323/api/v1"},
+		},
+		{
+			referer: "https://www.github.com/doc",
+			host:    "www.github.com",
+			docPath: "/doc",
+			name:    "Schemes without basePath",
+			schemes: []string{"https"},
+			servers: []string{"https://www.github.com"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := prepareApiRoot()
+			r.SetScheme(tt.schemes...)
 			e := r.(*Root).echo
-			req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/doc/swagger.json", nil)
+			req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/doc/openapi.json", nil)
 			req.Header.Add("referer", tt.referer)
 			rec := httptest.NewRecorder()
 			c := e.NewContext(req, rec)
 			if assert.NoError(t, r.(*Root).specHandler(tt.docPath)(c)) {
 				assert.Equal(t, http.StatusOK, rec.Code)
-				var v struct {
-					Host     string `json:"host"`
-					BasePath string `json:"basePath"`
-				}
+				var v OpenAPI
 				err := json.Unmarshal(rec.Body.Bytes(), &v)
 				assert.NoError(t, err)
-				assert.Equal(t, tt.host, v.Host)
-				assert.Equal(t, tt.basePath, v.BasePath)
+				var urls []string
+				for _, s := range v.Servers {
+					urls = append(urls, s.URL)
+				}
+				if tt.servers == nil {
+					// without schemes, the server is relative to the document
+					url := tt.basePath
+					if url == "" {
+						url = "/"
+					}
+					tt.servers = []string{url}
+				}
+				assert.Equal(t, tt.servers, urls)
 			}
 		})
 	}
@@ -210,24 +238,25 @@ func TestAddDefinition(t *testing.T) {
 	r := prepareApiRoot()
 	h := testHandler
 	a := r.GET("/", h)
-	a.AddParamBody(&da, "DA", "DA Struct", false)
-	assert.Equal(t, len(a.(*api).operation.Parameters), 1)
-	assert.Equal(t, "DA", a.(*api).operation.Parameters[0].Name)
-	assert.Equal(t, "DA Struct", a.(*api).operation.Parameters[0].Description)
-	assert.Equal(t, "body", a.(*api).operation.Parameters[0].In)
-	assert.NotNil(t, a.(*api).operation.Parameters[0].Schema)
-	assert.Equal(t, "#/definitions/DA", a.(*api).operation.Parameters[0].Schema.Ref)
+	a.AddParamBody(&da, "DA Struct", false)
+	assert.Equal(t, "DA Struct", a.(*api).operation.RequestBody.Description)
+	assert.False(t, a.(*api).operation.RequestBody.Required)
+	assert.Equal(t, "#/components/schemas/DA", a.(*api).reqSchema.Ref)
 
 	assert.NotNil(t, a.(*api).defs)
 	assert.Equal(t, reflect.ValueOf(&da).Elem(), (*a.(*api).defs)["DA"].Value)
-	assert.Equal(t, reflect.ValueOf(&da.DB).Elem(), (*a.(*api).defs)[""].Value)
+	assert.Equal(t, reflect.ValueOf(&da.DB).Elem(), (*a.(*api).defs)["Anonymous"].Value)
 
 	e := r.(*Root).echo
-	req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
+	req := httptest.NewRequest(http.MethodGet, "/doc/openapi.json", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	if assert.NoError(t, r.(*Root).specHandler("/doc")(c)) {
 		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Len(t, r.(*Root).spec.Definitions, 2)
+		assert.Len(t, r.(*Root).spec.Components.Schemas, 2)
+		rb := r.(*Root).spec.Paths["/"].Get.RequestBody
+		assert.Equal(t, map[string]*MediaType{
+			"application/json": {Schema: &JSONSchema{Ref: "#/components/schemas/DA"}},
+		}, rb.Content)
 	}
 }

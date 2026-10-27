@@ -67,13 +67,17 @@ type ApiRoot interface {
 	// SetExternalDocs sets external docs.
 	SetExternalDocs(desc, url string) ApiRoot
 
-	// AddSecurityBasic adds `SecurityDefinition` with type basic.
+	// AddSecurityBasic adds `SecurityScheme` with type http and scheme basic.
 	AddSecurityBasic(name, desc string) ApiRoot
 
-	// AddSecurityAPIKey adds `SecurityDefinition` with type apikey.
+	// AddSecurityBearer adds `SecurityScheme` with type http and scheme bearer.
+	// bearerFormat is optional, e.g. "JWT".
+	AddSecurityBearer(name, desc, bearerFormat string) ApiRoot
+
+	// AddSecurityAPIKey adds `SecurityScheme` with type apiKey.
 	AddSecurityAPIKey(name, desc string, in SecurityInType) ApiRoot
 
-	// AddSecurityOAuth2 adds `SecurityDefinition` with type oauth2.
+	// AddSecurityOAuth2 adds `SecurityScheme` with type oauth2.
 	AddSecurityOAuth2(name, desc string, flow OAuth2FlowType, authorizationUrl, tokenUrl string, scopes map[string]string) ApiRoot
 
 	// SetUI sets UI setting.
@@ -81,13 +85,15 @@ type ApiRoot interface {
 	SetUI(ui UISetting) ApiRoot
 
 	// SetScheme sets available protocol schemes.
+	// One server is generated per scheme, otherwise the server is relative
+	// to the location of the spec.
 	SetScheme(schemes ...string) ApiRoot
 
-	// GetRaw returns raw `Swagger`. Only special case should use.
-	GetRaw() *Swagger
+	// GetRaw returns raw `OpenAPI`. Only special case should use.
+	GetRaw() *OpenAPI
 
-	// SetRaw sets raw `Swagger` to ApiRoot. Only special case should use.
-	SetRaw(s *Swagger) ApiRoot
+	// SetRaw sets raw `OpenAPI` to ApiRoot. Only special case should use.
+	SetRaw(s *OpenAPI) ApiRoot
 
 	// Echo returns the embedded Echo instance
 	Echo() *echo.Echo
@@ -103,11 +109,11 @@ type ApiGroup interface {
 	SetExternalDocs(desc, url string) ApiGroup
 
 	// SetSecurity sets Security for all operations within the ApiGroup
-	// which names are reigistered by AddSecurity... functions.
+	// which names are registered by AddSecurity... functions.
 	SetSecurity(names ...string) ApiGroup
 
 	// SetSecurityWithScope sets Security with scopes for all operations
-	// within the ApiGroup which names are reigistered
+	// within the ApiGroup which names are registered
 	// by AddSecurity... functions.
 	// Should only use when Security type is oauth2.
 	SetSecurityWithScope(s map[string][]string) ApiGroup
@@ -131,10 +137,10 @@ type Api interface {
 	// P must be struct type.
 	AddParamQueryNested(p interface{}) Api
 
-	// AddParamForm adds formData parameter.
+	// AddParamForm adds a form field to the request body.
 	AddParamForm(p interface{}, name, desc string, required bool) Api
 
-	// AddParamFormNested adds formData parameters nested in p.
+	// AddParamFormNested adds form fields nested in p to the request body.
 	// P must be struct type.
 	AddParamFormNested(p interface{}) Api
 
@@ -145,10 +151,11 @@ type Api interface {
 	// P must be struct type.
 	AddParamHeaderNested(p interface{}) Api
 
-	// AddParamBody adds body parameter.
-	AddParamBody(p interface{}, name, desc string, required bool) Api
+	// AddParamBody sets the request body.
+	// It can't be used with form or file parameters.
+	AddParamBody(p interface{}, desc string, required bool) Api
 
-	// AddParamFile adds file parameter.
+	// AddParamFile adds a file field to the request body, which is sent as multipart/form-data.
 	AddParamFile(name, desc string, required bool) Api
 
 	// AddResponse adds response for Api.
@@ -176,12 +183,12 @@ type Api interface {
 	// SetSummary sets summary.
 	SetSummary(summary string) Api
 
-	// SetSecurity sets Security which names are reigistered
+	// SetSecurity sets Security which names are registered
 	// by AddSecurity... functions.
 	SetSecurity(names ...string) Api
 
 	// SetSecurityWithScope sets Security for Api which names are
-	// reigistered by AddSecurity... functions.
+	// registered by AddSecurity... functions.
 	// Should only use when Security type is oauth2.
 	SetSecurityWithScope(s map[string][]string) Api
 
@@ -196,12 +203,15 @@ type routers struct {
 
 type Root struct {
 	routers
-	spec   *Swagger
-	echo   *echo.Echo
-	groups []group
-	ui     UISetting
-	once   sync.Once
-	err    error
+	spec     *OpenAPI
+	echo     *echo.Echo
+	groups   []group
+	ui       UISetting
+	consumes []string
+	produces []string
+	schemes  []string
+	once     sync.Once
+	err      error
 }
 
 type group struct {
@@ -216,6 +226,13 @@ type api struct {
 	defs      *RawDefineDic
 	security  []map[string][]string
 	operation Operation
+	consumes  []string
+	produces  []string
+	// reqSchema is the schema of the request body, it is a form when form is true
+	reqSchema   *JSONSchema
+	form        bool
+	hasFile     bool
+	respSchemas map[string]*JSONSchema
 }
 
 // New creates ApiRoot instance.
@@ -233,10 +250,12 @@ func New(e *echo.Echo, docPath string, i *Info, m ...echo.MiddlewareFunc) ApiRoo
 	defs := make(RawDefineDic)
 	r := &Root{
 		echo: e,
-		spec: &Swagger{
-			Info:                i,
-			SecurityDefinitions: make(map[string]*SecurityDefinition),
-			Definitions:         make(map[string]*JSONSchema),
+		spec: &OpenAPI{
+			Info: i,
+			Components: &Components{
+				Schemas:         make(map[string]*JSONSchema),
+				SecuritySchemes: make(map[string]*SecurityScheme),
+			},
 		},
 		routers: routers{
 			defs: &defs,
@@ -312,12 +331,12 @@ func (r *Root) BindGroup(name string, g *echo.Group) ApiGroup {
 }
 
 func (r *Root) SetRequestContentType(types ...string) ApiRoot {
-	r.spec.Consumes = types
+	r.consumes = types
 	return r
 }
 
 func (r *Root) SetResponseContentType(types ...string) ApiRoot {
-	r.spec.Produces = types
+	r.produces = types
 	return r
 }
 
@@ -333,11 +352,24 @@ func (r *Root) AddSecurityBasic(name, desc string) ApiRoot {
 	if !r.checkSecurity(name) {
 		return r
 	}
-	sd := &SecurityDefinition{
-		Type:        string(SecurityBasic),
+	r.spec.Components.SecuritySchemes[name] = &SecurityScheme{
+		Type:        string(SecurityHTTP),
 		Description: desc,
+		Scheme:      "basic",
 	}
-	r.spec.SecurityDefinitions[name] = sd
+	return r
+}
+
+func (r *Root) AddSecurityBearer(name, desc, bearerFormat string) ApiRoot {
+	if !r.checkSecurity(name) {
+		return r
+	}
+	r.spec.Components.SecuritySchemes[name] = &SecurityScheme{
+		Type:         string(SecurityHTTP),
+		Description:  desc,
+		Scheme:       "bearer",
+		BearerFormat: bearerFormat,
+	}
 	return r
 }
 
@@ -345,13 +377,12 @@ func (r *Root) AddSecurityAPIKey(name, desc string, in SecurityInType) ApiRoot {
 	if !r.checkSecurity(name) {
 		return r
 	}
-	sd := &SecurityDefinition{
+	r.spec.Components.SecuritySchemes[name] = &SecurityScheme{
 		Type:        string(SecurityAPIKey),
 		Description: desc,
 		Name:        name,
 		In:          string(in),
 	}
-	r.spec.SecurityDefinitions[name] = sd
 	return r
 }
 
@@ -359,15 +390,21 @@ func (r *Root) AddSecurityOAuth2(name, desc string, flow OAuth2FlowType, authori
 	if !r.checkSecurity(name) {
 		return r
 	}
-	sd := &SecurityDefinition{
-		Type:             string(SecurityOAuth2),
-		Description:      desc,
-		Flow:             string(flow),
-		AuthorizationURL: authorizationUrl,
-		TokenURL:         tokenUrl,
-		Scopes:           scopes,
+	if scopes == nil {
+		// scopes is required, even if empty
+		scopes = make(map[string]string)
 	}
-	r.spec.SecurityDefinitions[name] = sd
+	r.spec.Components.SecuritySchemes[name] = &SecurityScheme{
+		Type:        string(SecurityOAuth2),
+		Description: desc,
+		Flows: map[OAuth2FlowType]*OAuthFlow{
+			flow: {
+				AuthorizationURL: authorizationUrl,
+				TokenURL:         tokenUrl,
+				Scopes:           scopes,
+			},
+		},
+	}
 	return r
 }
 
@@ -382,15 +419,15 @@ func (r *Root) SetScheme(schemes ...string) ApiRoot {
 			panic("echoswagger: invalid protocol scheme")
 		}
 	}
-	r.spec.Schemes = schemes
+	r.schemes = schemes
 	return r
 }
 
-func (r *Root) GetRaw() *Swagger {
+func (r *Root) GetRaw() *OpenAPI {
 	return r.spec
 }
 
-func (r *Root) SetRaw(s *Swagger) ApiRoot {
+func (r *Root) SetRaw(s *OpenAPI) ApiRoot {
 	r.spec = s
 	return r
 }
@@ -494,11 +531,11 @@ func (a *api) AddParamQueryNested(p interface{}) Api {
 }
 
 func (a *api) AddParamForm(p interface{}, name, desc string, required bool) Api {
-	return a.addParams(p, ParamInFormData, name, desc, required, false)
+	return a.addParams(p, paramInForm, name, desc, required, false)
 }
 
 func (a *api) AddParamFormNested(p interface{}) Api {
-	return a.addParams(p, ParamInFormData, "", "", false, true)
+	return a.addParams(p, paramInForm, "", "", false, true)
 }
 
 func (a *api) AddParamHeader(p interface{}, name, desc string, required bool) Api {
@@ -509,19 +546,16 @@ func (a *api) AddParamHeaderNested(p interface{}) Api {
 	return a.addParams(p, ParamInHeader, "", "", false, true)
 }
 
-func (a *api) AddParamBody(p interface{}, name, desc string, required bool) Api {
-	return a.addBodyParams(p, name, desc, required)
+func (a *api) AddParamBody(p interface{}, desc string, required bool) Api {
+	return a.addBodyParams(p, desc, required)
 }
 
 func (a *api) AddParamFile(name, desc string, required bool) Api {
-	name = a.operation.rename(name)
-	a.operation.Parameters = append(a.operation.Parameters, &Parameter{
-		Name:        name,
-		In:          string(ParamInFormData),
-		Description: desc,
-		Required:    required,
-		Type:        "file",
+	a.addFormProperty(name, desc, required, &JSONSchema{
+		Type:             "string",
+		ContentMediaType: echo.MIMEOctetStream,
 	})
+	a.hasFile = true
 	return a
 }
 
@@ -535,7 +569,7 @@ func (a *api) AddResponse(code int, desc string, schema interface{}, header inte
 		if !isValidSchema(st, false) {
 			panic("echoswagger: invalid response schema")
 		}
-		r.Schema = a.defs.genSchema(reflect.ValueOf(schema))
+		a.respSchemas[strconv.Itoa(code)] = a.defs.genSchema(reflect.ValueOf(schema))
 	}
 
 	ht := reflect.TypeOf(header)
@@ -552,12 +586,12 @@ func (a *api) AddResponse(code int, desc string, schema interface{}, header inte
 }
 
 func (a *api) SetRequestContentType(types ...string) Api {
-	a.operation.Consumes = types
+	a.consumes = types
 	return a
 }
 
 func (a *api) SetResponseContentType(types ...string) Api {
-	a.operation.Produces = types
+	a.produces = types
 	return a
 }
 

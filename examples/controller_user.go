@@ -27,19 +27,19 @@ func (c UserController) Init(g echoswagger.ApiGroup) {
 		UserStatus int32    `json:"userStatus" swagger:"desc(User Status)"`
 	}
 	g.POST("", c.Create).
-		AddParamBody(&User{}, "body", "Created user object", true).
+		AddParamBody(&User{}, "Created user object", true).
 		SetOperationId("createUser").
 		SetDescription("This can only be done by the logged in user.").
 		SetSummary("Create user")
 
 	g.POST("/createWithArray", c.CreateWithArray).
-		AddParamBody(&[]User{}, "body", "List of user object", true).
+		AddParamBody(&[]User{}, "List of user object", true).
 		SetOperationId("createUsersWithArrayInput").
 		SetRequestContentType("application/json", "application/xml").
 		SetSummary("Creates list of users with given input array")
 
 	g.POST("/createWithList", c.CreateWithList).
-		AddParamBody(&[]User{}, "body", "List of user object", true).
+		AddParamBody(&[]User{}, "List of user object", true).
 		SetOperationId("createUsersWithListInput").
 		SetSummary("Creates list of users with given input array")
 
@@ -69,7 +69,7 @@ func (c UserController) Init(g echoswagger.ApiGroup) {
 
 	g.PUT("/{username}", c.UpdateByUsername).
 		AddParamPath("", "username", "name that need to be updated").
-		AddParamBody(&User{}, "body", "Updated user object", true).
+		AddParamBody(&User{}, "Updated user object", true).
 		AddResponse(http.StatusBadRequest, "Invalid user supplied", nil, nil).
 		AddResponse(http.StatusNotFound, "User not found", nil, nil).
 		SetOperationId("updateUser").

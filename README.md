@@ -9,6 +9,7 @@ English | [简体中文](./README_zh-CN.md)
 [![codecov](https://codecov.io/gh/0xN0x/echoswagger/branch/v5/graph/badge.svg)](https://codecov.io/gh/0xN0x/echoswagger/branch/v5)
 
 ## Feature
+- Generates an [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.2.html) document, served at `<docPath>/openapi.json`
 - No SwaggerUI HTML/CSS dependency
 - Highly integrated with Echo, low intrusive design
 - Take advantage of the strong typing language and chain programming to make it easy to use
@@ -35,6 +36,13 @@ There is no Echoswagger v3 or v4.
 - Replace the imports `github.com/labstack/echo/v4` → `github.com/labstack/echo/v5` and `github.com/pangpanglabs/echoswagger/v2` → `github.com/0xN0x/echoswagger/v5`.
 - Follow the [Echo v5 migration notes](https://github.com/labstack/echo/blob/v5.4.0/API_CHANGES_V5.md) (handlers now take `*echo.Context`).
 - `Api.Route()` now returns an `echo.RouteInfo` value instead of `*echo.Route`.
+- The generated document is OpenAPI 3.1 instead of Swagger 2.0, and is served at `<docPath>/openapi.json` instead of `<docPath>/swagger.json`:
+  - `AddParamBody(p, name, desc, required)` → `AddParamBody(p, desc, required)`, since a request body has no name in OpenAPI 3.
+  - Form and file parameters are now properties of the request body. A body can't be mixed with form or file parameters.
+  - OAuth2 flows are renamed: `OAuth2FlowApplication` → `OAuth2FlowClientCredentials`, `OAuth2FlowAccessCode` → `OAuth2FlowAuthorizationCode`.
+  - `SecurityBasic` → `SecurityHTTP`. New `AddSecurityBearer` and `SecurityInCookie`.
+  - `GetRaw()`/`SetRaw()` use the `OpenAPI` type instead of `Swagger`.
+  - The default UI is swagger-ui 5, loaded from jsDelivr.
 
 ## Example
 ```go
@@ -53,7 +61,7 @@ func main() {
 
 	// Routes with parameters & responses
 	r.POST("/", createUser).
-		AddParamBody(User{}, "body", "User input struct", true).
+		AddParamBody(User{}, "User input struct", true).
 		AddResponse(http.StatusCreated, "successful", nil, nil)
 
 	// Start server
@@ -79,9 +87,9 @@ func createUser(c *echo.Context) error {
 r := echoswagger.New(echo.New(), "/doc", nil)
 ```
 You can use the result `ApiRoot` instance to:
-- Setup Security definitions, request/response Content-Types, UI options, Scheme, etc.
+- Setup Security schemes, request/response Content-Types, UI options, Scheme, etc.
 ```go
-r.AddSecurityAPIKey("JWT", "JWT Token", echoswagger.SecurityInHeader).
+r.AddSecurityBearer("JWT", "JWT Token", "JWT").
 	SetRequestContentType("application/x-www-form-urlencoded", "multipart/form-data").
 	SetUI(UISetting{HideTop: true}).
 	SetScheme("https", "http")
@@ -140,10 +148,13 @@ AddParamHeader(p interface{}, name, desc string, required bool)
 
 AddParamHeaderNested(p interface{})
 
-AddParamBody(p interface{}, name, desc string, required bool)
+AddParamBody(p interface{}, desc string, required bool)
 
 AddParamFile(name, desc string, required bool)
 ```
+
+Form and file parameters are properties of the request body, so they can't be used with `AddParamBody`.
+Their content type is `multipart/form-data` when there is a file, `application/x-www-form-urlencoded` otherwise, unless set by `SetRequestContentType`.
 
 The methods which name's suffix are `Nested` means these methods treat parameter `p` 's fields as paramters, so it must be a struct type.
 
@@ -184,43 +195,44 @@ type User struct {
 	Gender string    `swagger:"enum(male|female|other),required"`
 	Money  []float64 `swagger:"default(0),readOnly"`
 }
-a.AddParamBody(&User{}, "Body", "", true)
+a.AddParamBody(&User{}, "", true)
 ```
-The definition is equivalent to:
+The schema is equivalent to (`xml` properties omitted):
 ```json
 {
-    "definitions": {
-        "User": {
-            "type": "object",
-            "properties": {
-                "Age": {
-                    "type": "integer",
-                    "format": "int32",
-                    "minimum": 0,
-                    "maximum": 99
-                },
-                "Gender": {
-                    "type": "string",
-                    "enum": [
-                        "male",
-                        "female",
-                        "other"
-                    ],
-                    "format": "string"
-                },
-                "Money": {
-                    "type": "array",
-                    "items": {
-                        "type": "number",
-                        "default": 0,
-                        "format": "double"
+    "components": {
+        "schemas": {
+            "User": {
+                "type": "object",
+                "properties": {
+                    "Age": {
+                        "type": "integer",
+                        "format": "int32",
+                        "minimum": 0,
+                        "maximum": 99
                     },
-                    "readOnly": true
-                }
-            },
-            "required": [
-                "Gender"
-            ]
+                    "Gender": {
+                        "type": "string",
+                        "enum": [
+                            "male",
+                            "female",
+                            "other"
+                        ]
+                    },
+                    "Money": {
+                        "type": "array",
+                        "items": {
+                            "type": "number",
+                            "format": "double",
+                            "default": 0
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "Gender"
+                ]
+            }
         }
     }
 }
@@ -235,7 +247,7 @@ min | `number` | -
 max | `number` | -
 minLen | `integer` | -
 maxLen | `integer` | -
-allowEmpty | `boolean` | Sets the ability to pass empty-valued parameters. This is valid only for either `query` or `formData` parameters and allows you to send a parameter with a name only or  an empty value. Default value is `false`.
+allowEmpty | `boolean` | Sets the ability to pass empty-valued parameters. This is valid only for `query` parameters and allows you to send a parameter with a name only or an empty value. Default value is `false`.
 required | `boolean` | Determines whether this parameter is mandatory. If the parameter is `in` "path", this property is `true` without setting. Otherwise, the property MAY be included and its default value is `false`.
 readOnly | `boolean` | Relevant only for Schema `"properties"` definitions. Declares the property as "read only". This means that it MAY be sent as part of a response but MUST NOT be sent as part of the request. Properties marked as `readOnly` being `true` SHOULD NOT be in the `required` list of the defined schema. Default value is `false`.
 enum | [*] | Enumerate value, multiple values should be separated by "\|"
@@ -255,7 +267,7 @@ if os.Getenv("env") == "production" {
 ```
 
 ## Reference
-[OpenAPI Specification 2.0](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md)
+[OpenAPI Specification 3.1.2](https://spec.openapis.org/oas/v3.1.2.html)
 
 ## License
 

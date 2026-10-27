@@ -30,7 +30,7 @@ func (c StoreController) Init(g echoswagger.ApiGroup) {
 		Complete bool      `json:"complete" swagger:"default(false)"`
 	}
 	g.POST("/order", c.CreateOrder).
-		AddParamBody(Order{}, "body", "order placed for purchasing the pet", true).
+		AddParamBody(Order{}, "order placed for purchasing the pet", true).
 		AddResponse(http.StatusOK, "successful operation", Order{}, nil).
 		AddResponse(http.StatusBadRequest, "Invalid Order", nil, nil).
 		SetOperationId("placeOrder").

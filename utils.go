@@ -2,8 +2,20 @@ package echoswagger
 
 import (
 	"reflect"
+	"regexp"
 	"strings"
 )
+
+var invalidComponentChars = regexp.MustCompile(`[^a-zA-Z0-9.\-_]`)
+
+// componentName returns a valid component key for a type name,
+// e.g. "Page[main.User]" → "Page_main.User_". Anonymous types are named "Anonymous".
+func componentName(name string) string {
+	if name == "" {
+		return "Anonymous"
+	}
+	return invalidComponentChars.ReplaceAllString(name, "_")
+}
 
 func contains(list []string, s string) bool {
 	for _, t := range list {

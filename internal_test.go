@@ -1,6 +1,7 @@
 package echoswagger
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -244,14 +245,14 @@ func TestSchemaTypes(t *testing.T) {
 			a := prepareApi()
 			if tt.panic {
 				assert.Panics(t, func() {
-					a.AddParamBody(tt.p, tt.name, "", true)
+					a.AddParamBody(tt.p, tt.name, true)
 				})
 			} else {
-				a.AddParamBody(tt.p, tt.name, "", true)
+				a.AddParamBody(tt.p, tt.name, true)
 				sapi, ok := a.(*api)
 				assert.Equal(t, ok, true)
-				assert.Equal(t, len(sapi.operation.Parameters), 1)
-				assert.Equal(t, tt.name, sapi.operation.Parameters[0].Name)
+				assert.NotNil(t, sapi.reqSchema)
+				assert.Equal(t, tt.name, sapi.operation.RequestBody.Description)
 			}
 		})
 	}
@@ -285,12 +286,11 @@ func TestSchemaRecursiveStruct(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := prepareApi()
-			a.AddParamBody(tt.p, tt.name, "", true)
+			a.AddParamBody(tt.p, tt.name, true)
 			sapi, ok := a.(*api)
 			assert.Equal(t, ok, true)
-			assert.Equal(t, len(sapi.operation.Parameters), 1)
 			assert.Equal(t, len(*sapi.defs), 2)
-			assert.Equal(t, tt.name, sapi.operation.Parameters[0].Name)
+			assert.Equal(t, DefPrefix+"test"+tt.name, sapi.reqSchema.Ref)
 		})
 	}
 }
@@ -308,13 +308,24 @@ func TestSchemaNestedStruct(t *testing.T) {
 		Org
 	}
 	a := prepareApi()
-	a.AddParamBody(pa, "pa", "", true)
+	a.AddParamBody(pa, "", true)
 	sapi, ok := a.(*api)
 	assert.Equal(t, ok, true)
-	assert.Equal(t, len(sapi.operation.Parameters), 1)
-	assert.NotNil(t, (*sapi.defs)[""])
-	assert.NotNil(t, (*sapi.defs)[""].Schema.Properties["address"])
-	assert.NotNil(t, (*sapi.defs)[""].Schema.Properties["id"])
+	assert.NotNil(t, sapi.operation.RequestBody)
+	assert.NotNil(t, (*sapi.defs)["Anonymous"])
+	assert.NotNil(t, (*sapi.defs)["Anonymous"].Schema.Properties["address"])
+	assert.NotNil(t, (*sapi.defs)["Anonymous"].Schema.Properties["id"])
 	assert.NotNil(t, (*sapi.defs)["User"])
 	assert.NotNil(t, (*sapi.defs)["User"].Schema.Properties["ExpiredAt"])
+}
+
+func TestComponentName(t *testing.T) {
+	assert.Equal(t, "Anonymous", componentName(""))
+	assert.Equal(t, "User", componentName("User"))
+	assert.Equal(t, "Page_main.User_", componentName("Page[main.User]"))
+
+	type A struct{ X int }
+	defs := RawDefineDic{"A": {Value: reflect.ValueOf(A{X: 2})}, "A_": {Value: reflect.ValueOf(A{X: 3})}}
+	_, key := defs.getKey(reflect.ValueOf(A{X: 1}))
+	assert.Equal(t, "A__", key)
 }

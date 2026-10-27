@@ -9,6 +9,7 @@
 [![codecov](https://codecov.io/gh/0xN0x/echoswagger/branch/v5/graph/badge.svg)](https://codecov.io/gh/0xN0x/echoswagger/branch/v5)
 
 ## 特性
+- 生成 [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.2.html) 文档，地址为 `<docPath>/openapi.json`
 - 不依赖任何SwaggerUI的HTML/CSS文件
 - 与Echo高度整合，低侵入式设计
 - 利用强类型语言和链式编程的优势，简单易用
@@ -35,6 +36,13 @@ go get github.com/0xN0x/echoswagger/v5
 - 将 import `github.com/labstack/echo/v4` 替换为 `github.com/labstack/echo/v5`，`github.com/pangpanglabs/echoswagger/v2` 替换为 `github.com/0xN0x/echoswagger/v5`。
 - 参考 [Echo v5 迁移说明](https://github.com/labstack/echo/blob/v5.4.0/API_CHANGES_V5.md)（handler 现在接收 `*echo.Context`）。
 - `Api.Route()` 现在返回 `echo.RouteInfo` 值，而不是 `*echo.Route`。
+- 生成的文档从 Swagger 2.0 改为 OpenAPI 3.1，地址从 `<docPath>/swagger.json` 改为 `<docPath>/openapi.json`：
+  - `AddParamBody(p, name, desc, required)` → `AddParamBody(p, desc, required)`，因为 OpenAPI 3 中请求体没有名称。
+  - 表单和文件参数现在是请求体的属性，不能与 body 参数同时使用。
+  - OAuth2 flow 重命名：`OAuth2FlowApplication` → `OAuth2FlowClientCredentials`，`OAuth2FlowAccessCode` → `OAuth2FlowAuthorizationCode`。
+  - `SecurityBasic` → `SecurityHTTP`。新增 `AddSecurityBearer` 和 `SecurityInCookie`。
+  - `GetRaw()`/`SetRaw()` 使用 `OpenAPI` 类型代替 `Swagger`。
+  - 默认 UI 为 swagger-ui 5，从 jsDelivr 加载。
 
 ## 示例
 ```go
@@ -53,7 +61,7 @@ func main() {
 
 	// Routes with parameters & responses
 	r.POST("/", createUser).
-		AddParamBody(User{}, "body", "User input struct", true).
+		AddParamBody(User{}, "User input struct", true).
 		AddResponse(http.StatusCreated, "successful", nil, nil)
 
 	// Start server
@@ -81,7 +89,7 @@ r := echoswagger.New(echo.New(), "/doc", nil)
 你可以用这个`ApiRoot`来：
 - 设置Security定义, 请求/响应Content-Type，UI选项，Scheme等。
 ```go
-r.AddSecurityAPIKey("JWT", "JWT Token", echoswagger.SecurityInHeader).
+r.AddSecurityBearer("JWT", "JWT Token", "JWT").
 	SetRequestContentType("application/x-www-form-urlencoded", "multipart/form-data").
 	SetUI(UISetting{HideTop: true}).
 	SetScheme("https", "http")
@@ -140,10 +148,13 @@ AddParamHeader(p interface{}, name, desc string, required bool)
 
 AddParamHeaderNested(p interface{})
 
-AddParamBody(p interface{}, name, desc string, required bool)
+AddParamBody(p interface{}, desc string, required bool)
 
 AddParamFile(name, desc string, required bool)
 ```
+
+表单和文件参数是请求体的属性，因此不能与 `AddParamBody` 同时使用。
+有文件时其 content type 为 `multipart/form-data`，否则为 `application/x-www-form-urlencoded`，除非通过 `SetRequestContentType` 设置。
 
 后缀带有`Nested`的方法把参数`p`的字段看做多个参数，所以它必须是结构体类型的。
 
@@ -184,43 +195,44 @@ type User struct {
 	Gender string    `swagger:"enum(male|female|other),required"`
 	Money  []float64 `swagger:"default(0),readOnly"`
 }
-a.AddParamBody(&User{}, "Body", "", true)
+a.AddParamBody(&User{}, "", true)
 ```
-此定义等价于:
+等同于以下 schema（省略 `xml` 属性）：
 ```json
 {
-    "definitions": {
-        "User": {
-            "type": "object",
-            "properties": {
-                "Age": {
-                    "type": "integer",
-                    "format": "int32",
-                    "minimum": 0,
-                    "maximum": 99
-                },
-                "Gender": {
-                    "type": "string",
-                    "enum": [
-                        "male",
-                        "female",
-                        "other"
-                    ],
-                    "format": "string"
-                },
-                "Money": {
-                    "type": "array",
-                    "items": {
-                        "type": "number",
-                        "default": 0,
-                        "format": "double"
+    "components": {
+        "schemas": {
+            "User": {
+                "type": "object",
+                "properties": {
+                    "Age": {
+                        "type": "integer",
+                        "format": "int32",
+                        "minimum": 0,
+                        "maximum": 99
                     },
-                    "readOnly": true
-                }
-            },
-            "required": [
-                "Gender"
-            ]
+                    "Gender": {
+                        "type": "string",
+                        "enum": [
+                            "male",
+                            "female",
+                            "other"
+                        ]
+                    },
+                    "Money": {
+                        "type": "array",
+                        "items": {
+                            "type": "number",
+                            "format": "double",
+                            "default": 0
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "Gender"
+                ]
+            }
         }
     }
 }
@@ -235,7 +247,7 @@ min | `number` | -
 max | `number` | -
 minLen | `integer` | -
 maxLen | `integer` | -
-allowEmpty | `boolean` | 设置传递空值参数的功能。 这仅对`query`或`formData`参数有效，并允许你发送仅具有名称或空值的参数。默认值为“false”。
+allowEmpty | `boolean` | 设置传递空值参数的功能。 这仅对`query`参数有效，并允许你发送仅具有名称或空值的参数。默认值为“false”。
 required | `boolean` | 确定此参数是否必需。如果参数是`in`“path”，则此属性默认为“true”。否则，可以设置此属性，其默认值为“false”。
 readOnly | `boolean` | 仅与Schema`"properties"`定义相关。将属性声明为“只读”。这意味着它可以作为响应的一部分发送，但绝不能作为请求的一部分发送。标记为“readOnly”的属性为“true”，不应位于已定义模式的“required”列表中。默认值为“false”。
 enum | [*] | 枚举值，多个值应以“\|”分隔。
@@ -255,7 +267,7 @@ if os.Getenv("env") == "production" {
 ```
 
 ## 参考
-[OpenAPI Specification 2.0](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md)
+[OpenAPI Specification 3.1.2](https://spec.openapis.org/oas/v3.1.2.html)
 
 ## License
 
