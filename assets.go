@@ -1,7 +1,7 @@
 package echoswagger
 
-// CDN refer to https://cdnjs.com/libraries/swagger-ui
-const DefaultCDN = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.11.1"
+// CDN refer to https://www.jsdelivr.com/package/npm/swagger-ui-dist
+const DefaultCDN = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.32.15"
 
 const SwaggerUIContent = `{{define "swagger"}}
 <!DOCTYPE html>
@@ -54,7 +54,6 @@ const SwaggerUIContent = `{{define "swagger"}}
       var specStr = "{{.spec}}"
       var spec = specStr ? JSON.parse(specStr) : undefined
       if (spec) {
-        spec.host = window.location.host
         var docPath = "{{.docPath}}"
         var basePath = window.location.pathname
         if (!docPath.endsWith("/")) { docPath += "/" }
@@ -62,7 +61,12 @@ const SwaggerUIContent = `{{define "swagger"}}
         if (basePath.endsWith(docPath)) {
           basePath = basePath.slice(0, -docPath.length)
         }
-        spec.basePath = basePath
+        basePath = basePath.replace(/\/$/, "")
+        if (basePath && !basePath.startsWith("/")) { basePath = "/" + basePath }
+        var schemes = {{.schemes}} || []
+        spec.servers = schemes.length ? schemes.map(function (s) {
+          return { url: s + "://" + window.location.host + basePath }
+        }) : [{ url: basePath || "/" }]
       }
       // Begin Swagger UI call region
       const ui = SwaggerUIBundle({

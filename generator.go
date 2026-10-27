@@ -4,60 +4,16 @@ import (
 	"reflect"
 )
 
-func (Items) generate(t reflect.Type) *Items {
+// paramSchema returns the schema of a non-body parameter type
+func paramSchema(t reflect.Type) *JSONSchema {
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
 	st, sf := toSwaggerType(t)
-	item := &Items{
-		Type: st,
-	}
 	if st == "array" {
-		item.Items = Items{}.generate(t.Elem())
-		item.CollectionFormat = "multi"
-	} else {
-		item.Format = sf
+		return &JSONSchema{Type: JSONType(st), Items: paramSchema(t.Elem())}
 	}
-	return item
-}
-
-func (Parameter) generate(f reflect.StructField, in ParamInType) *Parameter {
-	name, _ := getFieldName(f, in)
-	if name == "-" {
-		return nil
-	}
-	st, sf := toSwaggerType(f.Type)
-	pm := &Parameter{
-		Name: name,
-		In:   string(in),
-		Type: st,
-	}
-	if st == "array" {
-		pm.Items = Items{}.generate(f.Type.Elem())
-		pm.CollectionFormat = "multi"
-	} else {
-		pm.Format = sf
-	}
-
-	pm.handleSwaggerTags(f, name, in)
-	return pm
-}
-
-func (Header) generate(f reflect.StructField) *Header {
-	name, _ := getFieldName(f, ParamInHeader)
-	if name == "-" {
-		return nil
-	}
-	st, sf := toSwaggerType(f.Type)
-	h := &Header{
-		Type: st,
-	}
-	if st == "array" {
-		h.Items = Items{}.generate(f.Type.Elem())
-		h.CollectionFormat = "multi"
-	} else {
-		h.Format = sf
-	}
-
-	h.handleSwaggerTags(f, name)
-	return h
+	return &JSONSchema{Type: JSONType(st), Format: sf}
 }
 
 func (r *RawDefineDic) genSchema(v reflect.Value) *JSONSchema {
@@ -89,7 +45,7 @@ func (r *RawDefineDic) genSchema(v reflect.Value) *JSONSchema {
 		schema.Format = sf
 		zv := reflect.Zero(v.Type())
 		if v.CanInterface() && zv.CanInterface() && v.Interface() != zv.Interface() {
-			schema.Example = v.Interface()
+			schema.Examples = []interface{}{v.Interface()}
 		}
 	}
 	return schema
@@ -103,11 +59,14 @@ func (api) genHeader(v reflect.Value) map[string]*Header {
 	mh := make(map[string]*Header)
 	for i := 0; i < rt.NumField(); i++ {
 		f := rt.Field(i)
-		h := Header{}.generate(f)
-		if h != nil {
-			name, _ := getFieldName(f, ParamInHeader)
-			mh[name] = h
+		name, _ := getFieldName(f, ParamInHeader)
+		if name == "-" {
+			continue
 		}
+		tags := getSwaggerTags(f)
+		s := paramSchema(f.Type)
+		s.applySwaggerTags(f, tags)
+		mh[name] = &Header{Description: tags["desc"], Schema: s}
 	}
 	return mh
 }

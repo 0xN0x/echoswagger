@@ -15,16 +15,18 @@ func TestSecurity(t *testing.T) {
 		"read:users":  "read users",
 		"write:users": "modify users",
 	}
-	r.AddSecurityOAuth2("OAuth2", "OAuth2 Auth", OAuth2FlowAccessCode, "http://petstore.swagger.io/oauth/dialog", "", scope)
-	r.AddSecurityOAuth2("", "OAuth2 Auth", OAuth2FlowAccessCode, "http://petstore.swagger.io/oauth/dialog", "", scope)
+	r.AddSecurityOAuth2("OAuth2", "OAuth2 Auth", OAuth2FlowAuthorizationCode, "http://petstore.swagger.io/oauth/dialog", "", scope)
+	r.AddSecurityOAuth2("", "OAuth2 Auth", OAuth2FlowAuthorizationCode, "http://petstore.swagger.io/oauth/dialog", "", scope)
 	r.AddSecurityAPIKey("JWT", "JWT Token", SecurityInQuery)
 	r.AddSecurityAPIKey("", "JWT Token", SecurityInHeader)
 	r.AddSecurityBasic("Basic", "Basic Auth")
 	r.AddSecurityBasic("Basic", "Basic Auth")
+	r.AddSecurityBearer("Bearer", "Bearer Auth", "JWT")
+	r.AddSecurityOAuth2("NoScope", "", OAuth2FlowClientCredentials, "", "http://petstore.swagger.io/oauth/token", nil)
 
 	spec := r.(*Root).spec
-	assert.Len(t, spec.SecurityDefinitions, 3)
-	assert.Equal(t, spec.SecurityDefinitions, map[string]*SecurityDefinition{
+	assert.Len(t, spec.Components.SecuritySchemes, 5)
+	assert.Equal(t, spec.Components.SecuritySchemes, map[string]*SecurityScheme{
 		"JWT": {
 			Type:        "apiKey",
 			Description: "JWT Token",
@@ -32,16 +34,34 @@ func TestSecurity(t *testing.T) {
 			In:          string(SecurityInQuery),
 		},
 		"Basic": {
-			Type:        "basic",
+			Type:        "http",
 			Description: "Basic Auth",
+			Scheme:      "basic",
+		},
+		"Bearer": {
+			Type:         "http",
+			Description:  "Bearer Auth",
+			Scheme:       "bearer",
+			BearerFormat: "JWT",
 		},
 		"OAuth2": {
-			Type:             "oauth2",
-			Description:      "OAuth2 Auth",
-			Flow:             string(OAuth2FlowAccessCode),
-			AuthorizationURL: "http://petstore.swagger.io/oauth/dialog",
-			TokenURL:         "",
-			Scopes:           scope,
+			Type:        "oauth2",
+			Description: "OAuth2 Auth",
+			Flows: map[OAuth2FlowType]*OAuthFlow{
+				OAuth2FlowAuthorizationCode: {
+					AuthorizationURL: "http://petstore.swagger.io/oauth/dialog",
+					Scopes:           scope,
+				},
+			},
+		},
+		"NoScope": {
+			Type: "oauth2",
+			Flows: map[OAuth2FlowType]*OAuthFlow{
+				OAuth2FlowClientCredentials: {
+					TokenURL: "http://petstore.swagger.io/oauth/token",
+					Scopes:   map[string]string{},
+				},
+			},
 		},
 	})
 
@@ -152,15 +172,15 @@ func TestSecurity(t *testing.T) {
 		assert.Len(t, g.(*group).security, 1)
 
 		e := r.(*Root).echo
-		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/openapi.json", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		if assert.NoError(t, r.(*Root).genSpec(c)) {
 			o := r.(*Root).spec.Paths["/repeatg/repeat"]
 			assert.NotNil(t, o)
-			assert.Len(t, o.(*Path).Get.Security, 1)
-			assert.Len(t, o.(*Path).Get.Security[0], 1)
-			assert.Equal(t, o.(*Path).Get.Security[0], map[string][]string{
+			assert.Len(t, o.Get.Security, 1)
+			assert.Len(t, o.Get.Security[0], 1)
+			assert.Equal(t, o.Get.Security[0], map[string][]string{
 				"JWT": {},
 			})
 		}
@@ -175,7 +195,7 @@ func TestSecurity(t *testing.T) {
 		assert.Len(t, a.(*api).security, 1)
 
 		e := r.(*Root).echo
-		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/openapi.json", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		assert.Error(t, r.(*Root).genSpec(c))
@@ -200,7 +220,7 @@ func TestSecurityRepeat(t *testing.T) {
 		"read:users":  "read users",
 		"write:users": "modify users",
 	}
-	r.AddSecurityOAuth2("OAuth2", "OAuth2 Auth", OAuth2FlowAccessCode, "http://petstore.swagger.io/oauth/dialog", "", scope)
+	r.AddSecurityOAuth2("OAuth2", "OAuth2 Auth", OAuth2FlowAuthorizationCode, "http://petstore.swagger.io/oauth/dialog", "", scope)
 	r.AddSecurityAPIKey("JWT", "JWT Token", SecurityInQuery)
 	r.AddSecurityBasic("Basic", "Basic Auth")
 
@@ -235,12 +255,12 @@ func TestSecurityRepeat(t *testing.T) {
 		assert.Len(t, a.(*api).security[5], 1)
 		assert.Len(t, a.(*api).security[6], 1)
 
-		req := httptest.NewRequest(http.MethodGet, "/doc/swagger.json", nil)
+		req := httptest.NewRequest(http.MethodGet, "/doc/openapi.json", nil)
 		rec := httptest.NewRecorder()
 		c := r.(*Root).echo.NewContext(req, rec)
 		assert.NoError(t, r.(*Root).genSpec(c))
 		router := r.(*Root).spec.Paths["/repeat"]
-		se := router.(*Path).Get.Security
+		se := router.Get.Security
 
 		assert.Len(t, se, 6)
 	})

@@ -78,6 +78,10 @@ func (r *NopRoot) AddSecurityBasic(_, _ string) ApiRoot {
 	return r
 }
 
+func (r *NopRoot) AddSecurityBearer(_, _, _ string) ApiRoot {
+	return r
+}
+
 func (r *NopRoot) AddSecurityAPIKey(_, _ string, _ SecurityInType) ApiRoot {
 	return r
 }
@@ -95,11 +99,11 @@ func (r *NopRoot) SetScheme(_ ...string) ApiRoot {
 	return r
 }
 
-func (r *NopRoot) GetRaw() *Swagger {
+func (r *NopRoot) GetRaw() *OpenAPI {
 	return nil
 }
 
-func (r *NopRoot) SetRaw(_ *Swagger) ApiRoot {
+func (r *NopRoot) SetRaw(_ *OpenAPI) ApiRoot {
 	return r
 }
 
@@ -191,7 +195,7 @@ func (a *nopApi) AddParamHeaderNested(_ interface{}) Api {
 	return a
 }
 
-func (a *nopApi) AddParamBody(_ interface{}, _, _ string, _ bool) Api {
+func (a *nopApi) AddParamBody(_ interface{}, _ string, _ bool) Api {
 	return a
 }
 

@@ -5,7 +5,7 @@ import "errors"
 type SecurityType string
 
 const (
-	SecurityBasic  SecurityType = "basic"
+	SecurityHTTP   SecurityType = "http"
 	SecurityOAuth2 SecurityType = "oauth2"
 	SecurityAPIKey SecurityType = "apiKey"
 )
@@ -15,22 +15,23 @@ type SecurityInType string
 const (
 	SecurityInQuery  SecurityInType = "query"
 	SecurityInHeader SecurityInType = "header"
+	SecurityInCookie SecurityInType = "cookie"
 )
 
 type OAuth2FlowType string
 
 const (
-	OAuth2FlowImplicit    OAuth2FlowType = "implicit"
-	OAuth2FlowPassword    OAuth2FlowType = "password"
-	OAuth2FlowApplication OAuth2FlowType = "application"
-	OAuth2FlowAccessCode  OAuth2FlowType = "accessCode"
+	OAuth2FlowImplicit          OAuth2FlowType = "implicit"
+	OAuth2FlowPassword          OAuth2FlowType = "password"
+	OAuth2FlowClientCredentials OAuth2FlowType = "clientCredentials"
+	OAuth2FlowAuthorizationCode OAuth2FlowType = "authorizationCode"
 )
 
 func (r *Root) checkSecurity(name string) bool {
 	if name == "" {
 		return false
 	}
-	if _, ok := r.spec.SecurityDefinitions[name]; ok {
+	if _, ok := r.spec.Components.SecuritySchemes[name]; ok {
 		return false
 	}
 	return true
@@ -59,11 +60,11 @@ func setSecurityWithScope(security []map[string][]string, s ...map[string][]stri
 	return security
 }
 
-func (o *Operation) addSecurity(defs map[string]*SecurityDefinition, security []map[string][]string) error {
+func (o *Operation) addSecurity(defs map[string]*SecurityScheme, security []map[string][]string) error {
 	for _, scy := range security {
 		for k := range scy {
 			if _, ok := defs[k]; !ok {
-				return errors.New("echoswagger: not found SecurityDefinition with name: " + k)
+				return errors.New("echoswagger: not found SecurityScheme with name: " + k)
 			}
 		}
 		if containsMap(o.Security, scy) {

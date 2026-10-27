@@ -24,9 +24,9 @@ func TestSchemaSwaggerTags(t *testing.T) {
 	}
 
 	a := prepareApi()
-	a.AddParamBody(&User{}, "Body", "", true)
+	a.AddParamBody(&User{}, "", true)
 	sapi := a.(*api)
-	assert.Len(t, sapi.operation.Parameters, 1)
+	assert.NotNil(t, sapi.operation.RequestBody)
 	assert.Len(t, *sapi.defs, 2)
 
 	su := (*sapi.defs)["User"].Schema
@@ -66,16 +66,15 @@ func TestParamSwaggerTags(t *testing.T) {
 	a.AddParamQueryNested(SearchInput{})
 	o := a.(*api).operation
 	assert.Len(t, o.Parameters, 6)
-	assert.Equal(t, *o.Parameters[0].MinLength, 5)
-	assert.Equal(t, *o.Parameters[0].MaxLength, 8)
+	assert.Equal(t, *o.Parameters[0].Schema.MinLength, 5)
+	assert.Equal(t, *o.Parameters[0].Schema.MaxLength, 8)
 	assert.Equal(t, o.Parameters[1].AllowEmptyValue, true)
 	assert.Equal(t, o.Parameters[2].AllowEmptyValue, true)
-	assert.Equal(t, o.Parameters[2].Items.Items.Default, "id")
-	assert.Equal(t, o.Parameters[2].Items.CollectionFormat, "multi")
-	assert.ElementsMatch(t, o.Parameters[3].Items.Enum, []int{0, 1})
-	assert.Equal(t, o.Parameters[3].CollectionFormat, "multi")
-	assert.Equal(t, *o.Parameters[4].Minimum, float64(0))
-	assert.Equal(t, *o.Parameters[4].Maximum, float64(999))
+	assert.Equal(t, o.Parameters[2].Schema.Items.Items.DefaultValue, "id")
+	assert.Nil(t, o.Parameters[2].Schema.DefaultValue)
+	assert.ElementsMatch(t, o.Parameters[3].Schema.Items.Enum, []int{0, 1})
+	assert.Equal(t, *o.Parameters[4].Schema.Minimum, float64(0))
+	assert.Equal(t, *o.Parameters[4].Schema.Maximum, float64(999))
 	assert.Equal(t, o.Parameters[5].Description, "items count in one page")
 }
 
@@ -95,14 +94,12 @@ func TestHeaderSwaggerTags(t *testing.T) {
 	c := strconv.Itoa(http.StatusOK)
 	h := o.Responses[c].Headers
 	assert.Len(t, h, 5)
-	assert.Equal(t, *h["q"].MinLength, 5)
-	assert.Equal(t, *h["q"].MaxLength, 8)
-	assert.Equal(t, h["sortby"].Items.Items.Default, "id")
-	assert.Equal(t, h["sortby"].Items.CollectionFormat, "multi")
-	assert.ElementsMatch(t, h["order"].Items.Enum, []int{0, 1})
-	assert.Equal(t, h["order"].CollectionFormat, "multi")
-	assert.Equal(t, *h["skipCount"].Minimum, float64(0))
-	assert.Equal(t, *h["skipCount"].Maximum, float64(999))
+	assert.Equal(t, *h["q"].Schema.MinLength, 5)
+	assert.Equal(t, *h["q"].Schema.MaxLength, 8)
+	assert.Equal(t, h["sortby"].Schema.Items.Items.DefaultValue, "id")
+	assert.ElementsMatch(t, h["order"].Schema.Items.Enum, []int{0, 1})
+	assert.Equal(t, *h["skipCount"].Schema.Minimum, float64(0))
+	assert.Equal(t, *h["skipCount"].Schema.Maximum, float64(999))
 	assert.Equal(t, h["maxResultCount"].Description, "items count in one page")
 }
 
@@ -120,10 +117,10 @@ func TestXMLTags(t *testing.T) {
 	}
 
 	a := prepareApi()
-	a.AddParamBody(&User{}, "Body", "", true)
+	a.AddParamBody(&User{}, "", true)
 	sapi, ok := a.(*api)
 	assert.Equal(t, ok, true)
-	assert.Len(t, sapi.operation.Parameters, 1)
+	assert.NotNil(t, sapi.operation.RequestBody)
 	assert.Len(t, *sapi.defs, 2)
 
 	su := (*sapi.defs)["User"].Schema
@@ -140,7 +137,9 @@ func TestXMLTags(t *testing.T) {
 	assert.NotNil(t, ss)
 	assert.NotNil(t, ps)
 	assert.Equal(t, ss.XML.Name, "Spot")
-	assert.Equal(t, ps["Id"].XML.Attribute, "Id")
+	assert.Equal(t, ps["Id"].XML.Name, "Id")
+	assert.Equal(t, ps["Id"].XML.Attribute, true)
+	assert.Equal(t, ps["Address"].XML.Attribute, false)
 	assert.Nil(t, ps["Comment"].XML)
 	assert.Equal(t, ps["Address"].XML.Name, "AddressDetail")
 	assert.Nil(t, ps["Enable"].XML)
@@ -157,10 +156,10 @@ func TestEnumInSchema(t *testing.T) {
 	}
 
 	a := prepareApi()
-	a.AddParamBody(&User{}, "Body", "", true)
+	a.AddParamBody(&User{}, "", true)
 	sapi, ok := a.(*api)
 	assert.Equal(t, ok, true)
-	assert.Len(t, sapi.operation.Parameters, 1)
+	assert.NotNil(t, sapi.operation.RequestBody)
 	assert.Len(t, *sapi.defs, 1)
 
 	s := (*sapi.defs)["User"].Schema
@@ -206,21 +205,21 @@ func TestExampleInSchema(t *testing.T) {
 	}
 
 	a := prepareApi()
-	a.AddParamBody(u, "Body", "", true)
+	a.AddParamBody(u, "", true)
 	sapi, ok := a.(*api)
 	assert.Equal(t, ok, true)
-	assert.Len(t, sapi.operation.Parameters, 1)
+	assert.NotNil(t, sapi.operation.RequestBody)
 	assert.Len(t, *sapi.defs, 1)
 
-	s := (*sapi.defs)[""].Schema
+	s := (*sapi.defs)["Anonymous"].Schema
 	assert.NotNil(t, s)
 
 	p := s.Properties
 
-	assert.Equal(t, p["Id"].Example, u.Id)
-	assert.Equal(t, p["Age"].Example, u.Age)
-	assert.Equal(t, p["Status"].Example, u.Status)
-	assert.Equal(t, p["Amount"].Example, u.Amount)
-	assert.Equal(t, p["Grade"].Example, u.Grade)
-	assert.Equal(t, p["Deleted"].Example, u.Deleted)
+	assert.Equal(t, []interface{}{u.Id}, p["Id"].Examples)
+	assert.Equal(t, []interface{}{u.Age}, p["Age"].Examples)
+	assert.Equal(t, []interface{}{u.Status}, p["Status"].Examples)
+	assert.Equal(t, []interface{}{u.Amount}, p["Amount"].Examples)
+	assert.Equal(t, []interface{}{u.Grade}, p["Grade"].Examples)
+	assert.Equal(t, []interface{}{u.Deleted}, p["Deleted"].Examples)
 }

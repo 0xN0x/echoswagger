@@ -39,9 +39,9 @@ func getFieldName(f reflect.StructField, in ParamInType) (string, bool) {
 	switch in {
 	case ParamInQuery:
 		name = f.Tag.Get("query")
-	case ParamInFormData:
+	case paramInForm:
 		name = f.Tag.Get("form")
-	case ParamInBody, ParamInHeader, ParamInPath:
+	case paramInBody, ParamInHeader, ParamInPath:
 		_, name = getTag(f, "json", 0)
 	}
 	if name != "" {
@@ -51,77 +51,52 @@ func getFieldName(f reflect.StructField, in ParamInType) (string, bool) {
 	}
 }
 
-func (p *Parameter) handleSwaggerTags(field reflect.StructField, name string, in ParamInType) {
-	tags := getSwaggerTags(field)
-
-	if t, ok := tags["desc"]; ok {
-		p.Description = t
-	}
+// applySwaggerTags applies the validation related swagger tags to the schema.
+// For array types, they are applied to the innermost items.
+func (s *JSONSchema) applySwaggerTags(f reflect.StructField, tags map[string]string) {
+	s = s.latest()
 	if t, ok := tags["min"]; ok {
 		if m, err := strconv.ParseFloat(t, 64); err == nil {
-			p.Minimum = &m
+			s.Minimum = &m
 		}
 	}
 	if t, ok := tags["max"]; ok {
 		if m, err := strconv.ParseFloat(t, 64); err == nil {
-			p.Maximum = &m
+			s.Maximum = &m
 		}
 	}
 	if t, ok := tags["minLen"]; ok {
 		if m, err := strconv.Atoi(t); err == nil {
-			p.MinLength = &m
+			s.MinLength = &m
 		}
 	}
 	if t, ok := tags["maxLen"]; ok {
 		if m, err := strconv.Atoi(t); err == nil {
-			p.MaxLength = &m
+			s.MaxLength = &m
 		}
 	}
-	if _, ok := tags["allowEmpty"]; ok {
-		p.AllowEmptyValue = true
-	}
-	if _, ok := tags["required"]; ok || in == ParamInPath {
-		p.Required = true
-	}
 
-	convert := converter(field.Type)
+	convert := converter(f.Type)
 	if t, ok := tags["enum"]; ok {
-		enums := strings.Split(t, "|")
 		var es []interface{}
-		for _, s := range enums {
-			v, err := convert(s)
+		for _, e := range strings.Split(t, "|") {
+			v, err := convert(e)
 			if err != nil {
 				continue
 			}
 			es = append(es, v)
 		}
-		p.Enum = es
+		s.Enum = es
 	}
 	if t, ok := tags["default"]; ok {
 		v, err := convert(t)
 		if err == nil {
-			p.Default = v
+			s.DefaultValue = v
 		}
-	}
-
-	// Move part of tags in Parameter to Items
-	if p.Type == "array" {
-		items := p.Items.latest()
-		items.Minimum = p.Minimum
-		items.Maximum = p.Maximum
-		items.MinLength = p.MinLength
-		items.MaxLength = p.MaxLength
-		items.Enum = p.Enum
-		items.Default = p.Default
-		p.Minimum = nil
-		p.Maximum = nil
-		p.MinLength = nil
-		p.MaxLength = nil
-		p.Enum = nil
-		p.Default = nil
 	}
 }
 
+// handleSwaggerTags applies the swagger tags of field f to the property name of schema s.
 func (s *JSONSchema) handleSwaggerTags(f reflect.StructField, name string) {
 	propSchema := s.Properties[name]
 	tags := getSwaggerTags(f)
@@ -129,141 +104,13 @@ func (s *JSONSchema) handleSwaggerTags(f reflect.StructField, name string) {
 	if t, ok := tags["desc"]; ok {
 		propSchema.Description = t
 	}
-	if t, ok := tags["min"]; ok {
-		if m, err := strconv.ParseFloat(t, 64); err == nil {
-			propSchema.Minimum = &m
-		}
-	}
-	if t, ok := tags["max"]; ok {
-		if m, err := strconv.ParseFloat(t, 64); err == nil {
-			propSchema.Maximum = &m
-		}
-	}
-	if t, ok := tags["minLen"]; ok {
-		if m, err := strconv.Atoi(t); err == nil {
-			propSchema.MinLength = &m
-		}
-	}
-	if t, ok := tags["maxLen"]; ok {
-		if m, err := strconv.Atoi(t); err == nil {
-			propSchema.MaxLength = &m
-		}
-	}
 	if _, ok := tags["required"]; ok {
 		s.Required = append(s.Required, name)
 	}
 	if _, ok := tags["readOnly"]; ok {
 		propSchema.ReadOnly = true
 	}
-
-	convert := converter(f.Type)
-	if t, ok := tags["enum"]; ok {
-		enums := strings.Split(t, "|")
-		var es []interface{}
-		for _, s := range enums {
-			v, err := convert(s)
-			if err != nil {
-				continue
-			}
-			es = append(es, v)
-		}
-		propSchema.Enum = es
-	}
-	if t, ok := tags["default"]; ok {
-		v, err := convert(t)
-		if err == nil {
-			propSchema.DefaultValue = v
-		}
-	}
-
-	// Move part of tags in Schema to Items
-	if propSchema.Type == "array" {
-		items := propSchema.Items.latest()
-		items.Minimum = propSchema.Minimum
-		items.Maximum = propSchema.Maximum
-		items.MinLength = propSchema.MinLength
-		items.MaxLength = propSchema.MaxLength
-		items.Enum = propSchema.Enum
-		items.DefaultValue = propSchema.DefaultValue
-		propSchema.Minimum = nil
-		propSchema.Maximum = nil
-		propSchema.MinLength = nil
-		propSchema.MaxLength = nil
-		propSchema.Enum = nil
-		propSchema.DefaultValue = nil
-	}
-}
-
-func (h *Header) handleSwaggerTags(f reflect.StructField, name string) {
-	tags := getSwaggerTags(f)
-
-	if t, ok := tags["desc"]; ok {
-		h.Description = t
-	}
-	if t, ok := tags["min"]; ok {
-		if m, err := strconv.ParseFloat(t, 64); err == nil {
-			h.Minimum = &m
-		}
-	}
-	if t, ok := tags["max"]; ok {
-		if m, err := strconv.ParseFloat(t, 64); err == nil {
-			h.Maximum = &m
-		}
-	}
-	if t, ok := tags["minLen"]; ok {
-		if m, err := strconv.Atoi(t); err == nil {
-			h.MinLength = &m
-		}
-	}
-	if t, ok := tags["maxLen"]; ok {
-		if m, err := strconv.Atoi(t); err == nil {
-			h.MaxLength = &m
-		}
-	}
-
-	convert := converter(f.Type)
-	if t, ok := tags["enum"]; ok {
-		enums := strings.Split(t, "|")
-		var es []interface{}
-		for _, s := range enums {
-			v, err := convert(s)
-			if err != nil {
-				continue
-			}
-			es = append(es, v)
-		}
-		h.Enum = es
-	}
-	if t, ok := tags["default"]; ok {
-		v, err := convert(t)
-		if err == nil {
-			h.Default = v
-		}
-	}
-
-	// Move part of tags in Header to Items
-	if h.Type == "array" {
-		items := h.Items.latest()
-		items.Minimum = h.Minimum
-		items.Maximum = h.Maximum
-		items.MinLength = h.MinLength
-		items.MaxLength = h.MaxLength
-		items.Enum = h.Enum
-		items.Default = h.Default
-		h.Minimum = nil
-		h.Maximum = nil
-		h.MinLength = nil
-		h.MaxLength = nil
-		h.Enum = nil
-		h.Default = nil
-	}
-}
-
-func (t *Items) latest() *Items {
-	if t.Items != nil {
-		return t.Items.latest()
-	}
-	return t
+	propSchema.applySwaggerTags(f, tags)
 }
 
 func (s *JSONSchema) latest() *JSONSchema {
@@ -293,11 +140,8 @@ func (s *JSONSchema) handleXMLTags(f reflect.StructField) {
 		if s.XML == nil {
 			s.XML = &XMLSchema{}
 		}
-		if a == "attr" {
-			s.XML.Attribute = t
-		} else {
-			s.XML.Name = t
-		}
+		s.XML.Name = t
+		s.XML.Attribute = a == "attr"
 	}
 }
 

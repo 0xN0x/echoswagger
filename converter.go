@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// toSwaggerType returns type、format for a reflect.Type in swagger format
+// toSwaggerType returns type、format for a reflect.Type in JSON Schema format
 func toSwaggerType(t reflect.Type) (string, string) {
 	if t == reflect.TypeOf(time.Time{}) {
 		return "string", "date-time"
@@ -23,9 +23,9 @@ func toSwaggerType(t reflect.Type) (string, string) {
 	case reflect.Float64:
 		return "number", "double"
 	case reflect.String:
-		return "string", "string"
+		return "string", ""
 	case reflect.Bool:
-		return "boolean", "boolean"
+		return "boolean", ""
 	case reflect.Struct:
 		return "object", "object"
 	case reflect.Map:
@@ -35,11 +35,11 @@ func toSwaggerType(t reflect.Type) (string, string) {
 	case reflect.Ptr:
 		return toSwaggerType(t.Elem())
 	default:
-		return "string", "string"
+		return "string", ""
 	}
 }
 
-// toSwaggerPath returns path in swagger format
+// toSwaggerPath returns path in OpenAPI format
 func toSwaggerPath(path string) string {
 	var params []string
 	for i := 0; i < len(path); i++ {
@@ -79,7 +79,7 @@ func converter(t reflect.Type) func(s string) (interface{}, error) {
 			v, err := strconv.ParseFloat(s, 64)
 			return v, err
 		}
-	} else if st == "boolean" && sf == "boolean" {
+	} else if st == "boolean" {
 		return func(s string) (interface{}, error) {
 			v, err := strconv.ParseBool(s)
 			return v, err
